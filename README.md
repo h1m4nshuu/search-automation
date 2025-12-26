@@ -1,6 +1,47 @@
-# Edge Search Automation - Fixed for PowerShell
+# Microsoft Rewards Search Automation
 
-This script automates web searches using Microsoft Edge, Chrome, Brave, or Firefox browsers. The script has been fixed to work properly in PowerShell environments.
+Automate web searches using Microsoft Edge, Chrome, Brave, or Firefox browsers to earn Microsoft Rewards points. Features human-like behavior, multiple browser support, and browser extension for enhanced automation.
+
+## 🚀 Quick Setup from GitHub
+
+### Step 1: Clone the Repository
+```powershell
+git clone https://github.com/h1m4nshuu/edge-rewards.git
+cd edge-rewards
+```
+
+### Step 2: Install Python
+- Download and install Python 3.8 or higher from [python.org](https://www.python.org/downloads/)
+- Make sure to check "Add Python to PATH" during installation
+
+### Step 3: Create Virtual Environment
+```powershell
+python -m venv .venv
+```
+
+### Step 4: Install Dependencies
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+### Step 5: Run the Script
+```powershell
+# For Edge browser
+.\run_search.ps1
+
+# For Chrome browser
+& ".\.venv\Scripts\python.exe" ".\search_trending_edge.py" chrome
+
+# For Firefox browser
+.\run_firefox.ps1
+
+# For Brave browser
+& ".\.venv\Scripts\python.exe" ".\search_trending_edge.py" brave
+```
+
+That's it! The browser will open and start performing searches automatically.
+
+---
 
 ## Fixes Applied
 
@@ -65,9 +106,49 @@ If you want the script to control your main Edge browser instead of opening a ne
 
 ## Requirements
 
-- Microsoft Edge, Chrome, Brave, or Firefox browser installed
-- Python virtual environment (`.venv`) in the script directory
-- Required Python packages: `selenium`, `webdriver-manager`, `pytrends` (already installed)
+- **Browsers**: Microsoft Edge, Chrome, Brave, or Firefox
+- **Python**: Version 3.8 or higher
+- **Operating System**: Windows (PowerShell support)
+- **Python Packages**: Automatically installed via requirements.txt
+  - `selenium` - Browser automation
+  - `webdriver-manager` - Automatic driver management
+  - `pytrends` - Trending topics fetching
+
+## 🌐 Browser Support
+
+| Browser | Command | Status |
+|---------|---------|--------|
+| Edge | `.\run_search.ps1` or `python search_trending_edge.py edge` | ✅ Supported |
+| Chrome | `python search_trending_edge.py chrome` | ✅ Supported |
+| Firefox | `.\run_firefox.ps1` or `python search_trending_edge.py firefox` | ✅ Supported |
+| Brave | `python search_trending_edge.py brave` | ✅ Supported |
+
+All browsers use Bing search for Microsoft Rewards compatibility.
+
+## 🎯 Browser Extension (Optional)
+
+The repository includes a Chrome/Edge browser extension with human-like automation features:
+
+**Features:**
+- Human-like typing with realistic delays and mistakes
+- Auto-scroll with variable speed and pauses
+- Click simulation on search results
+- Tab switching behavior
+- Configurable settings via popup
+
+**Installation:**
+1. Open Edge/Chrome and go to `edge://extensions` or `chrome://extensions`
+2. Enable "Developer mode"
+3. Click "Load unpacked"
+4. Select the `extension/` folder from this repository
+
+**Documentation:**
+- [START_HERE.md](extension/START_HERE.md) - Quick start guide
+- [INSTALLATION.md](extension/INSTALLATION.md) - Detailed installation
+- [SCROLLING_GUIDE.md](extension/SCROLLING_GUIDE.md) - Auto-scroll features
+- [HUMAN_TYPING_GUIDE.md](extension/HUMAN_TYPING_GUIDE.md) - Typing simulation
+
+## Original Requirements
 
 ## Troubleshooting
 
