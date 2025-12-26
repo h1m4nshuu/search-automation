@@ -1,15 +1,21 @@
 """
 search_trending_edge.py
 
-Edge (Chromium) + Selenium script that:
+Multi-Browser Selenium script that:
 - chooses 30 trending topics (via pytrends if available, otherwise fallback list),
-- opens each topic in Microsoft Edge,
+- opens each topic in specified browser (Edge, Chrome, Brave, or Firefox),
 - scrolls the page in human-like steps,
-- waits a random interval between 50 and 55 seconds between searches.
+- waits a random interval around 15 seconds between searches.
+
+Usage:
+  python search_trending_edge.py edge          # Search in Edge
+  python search_trending_edge.py chrome        # Search in Chrome (Bing)
+  python search_trending_edge.py brave         # Search in Brave (Bing)
+  python search_trending_edge.py firefox       # Search in Firefox (Bing)
 
 Requirements:
   pip install selenium webdriver-manager pytrends
-  Microsoft Edge (Chromium) installed on the machine.
+  Microsoft Edge, Chrome, Brave, or Firefox browser installed on the machine.
 """
 
 import time
@@ -26,6 +32,16 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.edge.service import Service as EdgeService
 from selenium.webdriver.edge.options import Options as EdgeOptions
 from webdriver_manager.microsoft import EdgeChromiumDriverManager
+
+# Chrome-specific imports
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from webdriver_manager.chrome import ChromeDriverManager
+
+# Firefox-specific imports
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from webdriver_manager.firefox import GeckoDriverManager
 
 # Optional: pytrends to fetch trending searches
 try:
@@ -422,14 +438,76 @@ def click_search_result(driver):
     except Exception as e:
         print(f"  -> Could not click search result: {e}")
 
-def build_edge_driver(headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
-    options = EdgeOptions()
+def build_browser_driver(browser='edge', headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
+    """
+    Build a browser driver for Edge, Chrome, Brave, or Firefox.
+    
+    Args:
+        browser: 'edge', 'chrome', 'brave', or 'firefox'
+        headless: Run browser in headless mode
+        window_size: Initial window size
+        use_existing: Connect to existing browser
+        debug_port: Port for existing browser connection
+    """
+    browser_lower = browser.lower()
+    if browser_lower == 'chrome':
+        return build_chrome_driver(headless, window_size, use_existing, debug_port)
+    elif browser_lower == 'brave':
+        return build_brave_driver(headless, window_size, use_existing, debug_port)
+    elif browser_lower == 'firefox':
+        return build_firefox_driver(headless, window_size, use_existing, debug_port)
+    else:
+        return build_edge_driver(headless, window_size, use_existing, debug_port)
+
+def build_chrome_driver(headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
+    """
+    Build Chrome driver with human-like settings.
+    Uses your existing Chrome profile to maintain Microsoft account login.
+    """
+    import os
+    import shutil
+    import tempfile
+    
+    options = ChromeOptions()
     
     if use_existing:
-        # Connect to existing Edge browser - use minimal options for maximum compatibility
-        print(f"Connecting to existing Edge browser on port {debug_port}...")
+        # Connect to existing Chrome browser
+        print(f"Connecting to existing Chrome browser on port {debug_port}...")
         options.add_experimental_option("debuggerAddress", f"127.0.0.1:{debug_port}")
     else:
+        # Use existing Chrome profile to stay logged in
+        # Create a temporary copy to avoid "Chrome is already running" error
+        original_user_data = os.path.join(os.environ['LOCALAPPDATA'], 'Google', 'Chrome', 'User Data')
+        
+        # Create automation profile directory
+        automation_profile_dir = os.path.join(os.environ['LOCALAPPDATA'], 'Google', 'Chrome', 'User Data Automation')
+        
+        # Check if we should copy the default profile
+        default_profile = os.path.join(original_user_data, 'Default')
+        automation_default = os.path.join(automation_profile_dir, 'Default')
+        
+        if os.path.exists(default_profile) and not os.path.exists(automation_default):
+            print("Copying Chrome profile for automation (one-time setup)...")
+            try:
+                os.makedirs(automation_profile_dir, exist_ok=True)
+                # Copy only essential files to maintain login
+                for item in ['Cookies', 'Login Data', 'Preferences', 'Network']:
+                    src = os.path.join(default_profile, item)
+                    if os.path.exists(src):
+                        dst = os.path.join(automation_default, item)
+                        os.makedirs(automation_default, exist_ok=True)
+                        if os.path.isfile(src):
+                            shutil.copy2(src, dst)
+                        else:
+                            shutil.copytree(src, dst, dirs_exist_ok=True)
+            except Exception as e:
+                print(f"Note: Could not copy profile: {e}")
+                print("Using fresh profile - please sign in to Microsoft account when browser opens")
+        
+        print(f"Using Chrome automation profile")
+        options.add_argument(f"--user-data-dir={automation_profile_dir}")
+        options.add_argument(f"--profile-directory=Default")
+        
         # New browser instance with human-like settings
         if headless:
             options.add_argument("--headless=new")
@@ -439,10 +517,9 @@ def build_edge_driver(headless=False, window_size=(1200, 800), use_existing=Fals
         height = random.randint(800, 1000)
         options.add_argument(f"--window-size={width},{height}")
         
-        # Add human-like browser arguments
-        options.add_argument("--disable-extensions")
+        # Add human-like browser arguments (removed --disable-extensions to keep signed-in state)
         options.add_argument("--no-first-run")
-        options.add_argument("--disable-default-apps")
+        options.add_argument("--no-default-browser-check")
         
         # Set realistic user agent and preferences
         options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
@@ -452,7 +529,396 @@ def build_edge_driver(headless=False, window_size=(1200, 800), use_existing=Fals
         prefs = {
             "profile.default_content_setting_values": {
                 "notifications": 2,  # Block notifications
-                "geolocation": 2     # Block location requests
+            },
+            "profile.managed_default_content_settings": {
+                "images": 1  # Allow images
+            }
+        }
+        options.add_experimental_option("prefs", prefs)
+
+    # Try to get Chrome driver
+    driver = None
+    
+    # First try system ChromeDriver
+    try:
+        print("Trying to use system-installed ChromeDriver...")
+        driver = webdriver.Chrome(options=options)
+        print("Successfully connected using system ChromeDriver!")
+    except Exception as e1:
+        print(f"System ChromeDriver failed: {e1}")
+        
+        # If that fails, try auto-download
+        if not use_existing:
+            try:
+                print("Trying to auto-download ChromeDriver...")
+                service = ChromeService(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=options)
+                print("Successfully connected using downloaded ChromeDriver!")
+            except Exception as e2:
+                print(f"Auto-download ChromeDriver failed: {e2}")
+        
+        if driver is None:
+            print(f"All ChromeDriver methods failed.")
+            if use_existing:
+                print("\nTo use existing Chrome browser:")
+                print("1. Make sure Chrome is running with: chrome.exe --remote-debugging-port=9222")
+                print("2. Ensure ChromeDriver is in your system PATH")
+            else:
+                print("Please ensure Chrome is installed and ChromeDriver is available.")
+            raise Exception("Could not initialize ChromeDriver")
+
+    # Make browser appear more human-like
+    try:
+        if not use_existing:
+            # Override automation detection
+            driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+                "source": """
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                    Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+                    Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+                    window.chrome = {runtime: {}};
+                """
+            })
+            
+            # Set realistic viewport
+            width = random.randint(1200, 1600)
+            height = random.randint(800, 1000)
+            driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {
+                "width": width,
+                "height": height,
+                "deviceScaleFactor": 1,
+                "mobile": False
+            })
+    except Exception:
+        pass
+    
+    # Set random position on screen
+    if not use_existing and not headless:
+        try:
+            x = random.randint(50, 200)
+            y = random.randint(50, 150)
+            driver.set_window_position(x, y)
+        except Exception:
+            pass
+
+    return driver
+
+def build_brave_driver(headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
+    """
+    Build Brave driver with human-like settings.
+    Uses your existing Brave profile to maintain Microsoft account login.
+    """
+    import os
+    import shutil
+    
+    options = ChromeOptions()
+    
+    if use_existing:
+        # Connect to existing Brave browser
+        print(f"Connecting to existing Brave browser on port {debug_port}...")
+        options.add_experimental_option("debuggerAddress", f"127.0.0.1:{debug_port}")
+    else:
+        # Use existing Brave profile to stay logged in
+        # Create a separate automation profile to avoid conflicts
+        original_user_data = os.path.join(os.environ['LOCALAPPDATA'], 'BraveSoftware', 'Brave-Browser', 'User Data')
+        
+        # Create automation profile directory
+        automation_profile_dir = os.path.join(os.environ['LOCALAPPDATA'], 'BraveSoftware', 'Brave-Browser', 'User Data Automation')
+        
+        # Check if we should copy the default profile
+        default_profile = os.path.join(original_user_data, 'Default')
+        automation_default = os.path.join(automation_profile_dir, 'Default')
+        
+        if os.path.exists(default_profile) and not os.path.exists(automation_default):
+            print("Copying Brave profile for automation (one-time setup)...")
+            try:
+                os.makedirs(automation_profile_dir, exist_ok=True)
+                # Copy only essential files to maintain login
+                for item in ['Cookies', 'Login Data', 'Preferences', 'Network']:
+                    src = os.path.join(default_profile, item)
+                    if os.path.exists(src):
+                        dst = os.path.join(automation_default, item)
+                        os.makedirs(automation_default, exist_ok=True)
+                        if os.path.isfile(src):
+                            shutil.copy2(src, dst)
+                        else:
+                            shutil.copytree(src, dst, dirs_exist_ok=True)
+            except Exception as e:
+                print(f"Note: Could not copy profile: {e}")
+                print("Using fresh profile - please sign in to Microsoft account when browser opens")
+        
+        print(f"Using Brave automation profile")
+        options.add_argument(f"--user-data-dir={automation_profile_dir}")
+        options.add_argument(f"--profile-directory=Default")
+        
+        # Set Brave binary location
+        brave_paths = [
+            os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
+            os.path.join(os.environ.get('PROGRAMFILES(X86)', 'C:\\Program Files (x86)'), 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe'),
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'BraveSoftware', 'Brave-Browser', 'Application', 'brave.exe')
+        ]
+        
+        brave_binary = None
+        for path in brave_paths:
+            if os.path.exists(path):
+                brave_binary = path
+                break
+        
+        if brave_binary:
+            options.binary_location = brave_binary
+            print(f"Found Brave at: {brave_binary}")
+        else:
+            print("Warning: Could not find Brave browser. Using default Chrome driver.")
+        
+        # New browser instance with human-like settings
+        if headless:
+            options.add_argument("--headless=new")
+        
+        # Randomize window size to look more human
+        width = random.randint(1200, 1600)
+        height = random.randint(800, 1000)
+        options.add_argument(f"--window-size={width},{height}")
+        
+        # Add human-like browser arguments (removed --disable-extensions to keep signed-in state)
+        options.add_argument("--no-first-run")
+        options.add_argument("--no-default-browser-check")
+        
+        # Set realistic user agent and preferences
+        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+        options.add_experimental_option('useAutomationExtension', False)
+        
+        # Add realistic preferences
+        prefs = {
+            "profile.default_content_setting_values": {
+                "notifications": 2,  # Block notifications
+            },
+            "profile.managed_default_content_settings": {
+                "images": 1  # Allow images
+            }
+        }
+        options.add_experimental_option("prefs", prefs)
+
+    # Try to get Brave driver (uses ChromeDriver)
+    driver = None
+    
+    # First try system ChromeDriver
+    try:
+        print("Trying to use system-installed ChromeDriver for Brave...")
+        driver = webdriver.Chrome(options=options)
+        print("Successfully connected using system ChromeDriver!")
+    except Exception as e1:
+        print(f"System ChromeDriver failed: {e1}")
+        
+        # If that fails, try auto-download
+        if not use_existing:
+            try:
+                print("Trying to auto-download ChromeDriver for Brave...")
+                service = ChromeService(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=options)
+                print("Successfully connected using downloaded ChromeDriver!")
+            except Exception as e2:
+                print(f"Auto-download ChromeDriver failed: {e2}")
+        
+        if driver is None:
+            print(f"All ChromeDriver methods failed.")
+            if use_existing:
+                print("\nTo use existing Brave browser:")
+                print("1. Make sure Brave is running with: brave.exe --remote-debugging-port=9222")
+                print("2. Ensure ChromeDriver is in your system PATH")
+            else:
+                print("Please ensure Brave is installed and ChromeDriver is available.")
+            raise Exception("Could not initialize ChromeDriver for Brave")
+
+    # Make browser appear more human-like
+    try:
+        if not use_existing:
+            # Override automation detection
+            driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+                "source": """
+                    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                    Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+                    Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+                    window.chrome = {runtime: {}};
+                """
+            })
+            
+            # Set realistic viewport
+            width = random.randint(1200, 1600)
+            height = random.randint(800, 1000)
+            driver.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {
+                "width": width,
+                "height": height,
+                "deviceScaleFactor": 1,
+                "mobile": False
+            })
+    except Exception:
+        pass
+    
+    # Set random position on screen
+    if not use_existing and not headless:
+        try:
+            x = random.randint(50, 200)
+            y = random.randint(50, 150)
+            driver.set_window_position(x, y)
+        except Exception:
+            pass
+
+    return driver
+
+def build_firefox_driver(headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
+    """
+    Build Firefox driver with human-like settings.
+    Uses your existing Firefox profile to maintain Microsoft account login.
+    """
+    import os
+    import shutil
+    
+    options = FirefoxOptions()
+    
+    if use_existing:
+        # Connect to existing Firefox browser
+        print(f"Connecting to existing Firefox browser on port {debug_port}...")
+        options.add_argument("--marionette-port")
+        options.add_argument(str(debug_port))
+    else:
+        # Create automation profile directory
+        firefox_profile_dir = os.path.join(os.environ['LOCALAPPDATA'], 'Mozilla', 'Firefox', 'Profiles Automation')
+        
+        print(f"Using Firefox automation profile")
+        
+        # New browser instance with human-like settings
+        if headless:
+            options.add_argument("--headless")
+        
+        # Randomize window size to look more human
+        width = random.randint(1200, 1600)
+        height = random.randint(800, 1000)
+        options.add_argument(f"--width={width}")
+        options.add_argument(f"--height={height}")
+        
+        # Set realistic preferences
+        options.set_preference("dom.webdriver.enabled", False)
+        options.set_preference("useAutomationExtension", False)
+        options.set_preference("general.useragent.override", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0")
+        options.set_preference("permissions.default.desktop-notification", 2)  # Block notifications
+        options.set_preference("dom.disable_open_during_load", True)
+        
+        # Privacy and performance settings
+        options.set_preference("privacy.trackingprotection.enabled", False)  # Disable tracking protection for better compatibility
+        options.set_preference("network.http.connection-timeout", 90)
+
+    # Try to get Firefox driver
+    driver = None
+    
+    # First try system GeckoDriver
+    try:
+        print("Trying to use system-installed GeckoDriver...")
+        driver = webdriver.Firefox(options=options)
+        print("Successfully connected using system GeckoDriver!")
+    except Exception as e1:
+        print(f"System GeckoDriver failed: {e1}")
+        
+        # If that fails, try auto-download
+        if not use_existing:
+            try:
+                print("Trying to auto-download GeckoDriver...")
+                service = FirefoxService(GeckoDriverManager().install())
+                driver = webdriver.Firefox(service=service, options=options)
+                print("Successfully connected using downloaded GeckoDriver!")
+            except Exception as e2:
+                print(f"Auto-download GeckoDriver failed: {e2}")
+        
+        if driver is None:
+            print(f"All GeckoDriver methods failed.")
+            if use_existing:
+                print("\nTo use existing Firefox browser:")
+                print("1. Make sure Firefox is running with remote debugging enabled")
+                print("2. Ensure GeckoDriver is in your system PATH")
+            else:
+                print("Please ensure Firefox is installed and GeckoDriver is available.")
+            raise Exception("Could not initialize GeckoDriver")
+
+    # Set random position on screen
+    if not use_existing and not headless:
+        try:
+            x = random.randint(50, 200)
+            y = random.randint(50, 150)
+            driver.set_window_position(x, y)
+            
+            # Set window size
+            width = random.randint(1200, 1600)
+            height = random.randint(800, 1000)
+            driver.set_window_size(width, height)
+        except Exception:
+            pass
+
+    return driver
+
+def build_edge_driver(headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
+    import os
+    import shutil
+    
+    options = EdgeOptions()
+    
+    if use_existing:
+        # Connect to existing Edge browser - use minimal options for maximum compatibility
+        print(f"Connecting to existing Edge browser on port {debug_port}...")
+        options.add_experimental_option("debuggerAddress", f"127.0.0.1:{debug_port}")
+    else:
+        # Use existing Edge profile to stay logged in
+        # Create a separate automation profile to avoid conflicts
+        original_user_data = os.path.join(os.environ['LOCALAPPDATA'], 'Microsoft', 'Edge', 'User Data')
+        
+        # Create automation profile directory
+        automation_profile_dir = os.path.join(os.environ['LOCALAPPDATA'], 'Microsoft', 'Edge', 'User Data Automation')
+        
+        # Check if we should copy the default profile
+        default_profile = os.path.join(original_user_data, 'Default')
+        automation_default = os.path.join(automation_profile_dir, 'Default')
+        
+        if os.path.exists(default_profile) and not os.path.exists(automation_default):
+            print("Copying Edge profile for automation (one-time setup)...")
+            try:
+                os.makedirs(automation_profile_dir, exist_ok=True)
+                # Copy only essential files to maintain login
+                for item in ['Cookies', 'Login Data', 'Preferences', 'Network']:
+                    src = os.path.join(default_profile, item)
+                    if os.path.exists(src):
+                        dst = os.path.join(automation_default, item)
+                        os.makedirs(automation_default, exist_ok=True)
+                        if os.path.isfile(src):
+                            shutil.copy2(src, dst)
+                        else:
+                            shutil.copytree(src, dst, dirs_exist_ok=True)
+            except Exception as e:
+                print(f"Note: Could not copy profile: {e}")
+                print("Using fresh profile - please sign in to Microsoft account when browser opens")
+        
+        print(f"Using Edge automation profile")
+        options.add_argument(f"--user-data-dir={automation_profile_dir}")
+        options.add_argument(f"--profile-directory=Default")
+        
+        # New browser instance with human-like settings
+        if headless:
+            options.add_argument("--headless=new")
+        
+        # Randomize window size to look more human
+        width = random.randint(1200, 1600)
+        height = random.randint(800, 1000)
+        options.add_argument(f"--window-size={width},{height}")
+        
+        # Add human-like browser arguments (removed --disable-extensions to keep signed-in state)
+        options.add_argument("--no-first-run")
+        options.add_argument("--no-default-browser-check")
+        
+        # Set realistic user agent and preferences
+        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+        options.add_experimental_option('useAutomationExtension', False)
+        
+        # Add realistic preferences
+        prefs = {
+            "profile.default_content_setting_values": {
+                "notifications": 2,  # Block notifications
             },
             "profile.managed_default_content_settings": {
                 "images": 1  # Allow images
@@ -617,11 +1083,11 @@ def ensure_rewards_eligible_behavior(driver):
     except Exception as e:
         print(f"  -> Could not perform engagement actions: {e}")
 
-def run_search_sequence(topics, headless=False, min_wait=50, max_wait=55, use_existing=False):
-    driver = build_edge_driver(headless=headless, use_existing=use_existing)
+def run_search_sequence(topics, browser='edge', headless=False, min_wait=50, max_wait=55, use_existing=False):
+    driver = build_browser_driver(browser=browser, headless=headless, use_existing=use_existing)
     try:
         # Navigate to Bing and check for Microsoft account
-        print("Initializing Bing and checking Microsoft Rewards eligibility...")
+        print(f"Initializing Bing in {browser.upper()} and checking Microsoft Rewards eligibility...")
         driver.get("https://www.bing.com")
         time.sleep(random.uniform(3, 5))  # Extra time for page load
         
@@ -754,9 +1220,50 @@ if __name__ == "__main__":
     # Default settings (optimized for Microsoft Rewards)
     HEADLESS = False
     USE_EXISTING = False
-    MIN_WAIT = 35  # Increased for better reward qualification
-    MAX_WAIT = 50  # Increased for better reward qualification  
+    MIN_WAIT = 10  # 10 second delay between searches
+    MAX_WAIT = 10  # Fixed at 10 seconds
     TOPIC_COUNT = 30
+    BROWSER = 'edge'  # Default browser
+    
+    # Check for browser argument
+    if len(sys.argv) > 1:
+        browser_arg = sys.argv[1].lower()
+        if 'chrome' in browser_arg:
+            BROWSER = 'chrome'
+            print("Using Chrome browser for Bing searches.")
+        elif 'brave' in browser_arg:
+            BROWSER = 'brave'
+            print("Using Brave browser for Bing searches.")
+        elif 'firefox' in browser_arg:
+            BROWSER = 'firefox'
+            print("Using Firefox browser for Bing searches.")
+        elif 'edge' in browser_arg:
+            BROWSER = 'edge'
+            print("Using Edge browser for searches.")
+        elif browser_arg in ['--help', '-h']:
+            print("Usage: python search_trending_edge.py [browser] [options]")
+            print("\nBrowser:")
+            print("  edge          Use Microsoft Edge (default)")
+            print("  chrome        Use Google Chrome to search on Bing")
+            print("  brave         Use Brave Browser to search on Bing")
+            print("  firefox       Use Mozilla Firefox to search on Bing")
+            print("\nOptions:")
+            print("  --headless    Run browser in headless mode (invisible)")
+            print("  --existing    Connect to existing browser (requires setup)")
+            print("  --help, -h    Show this help message")
+            print("\nExamples:")
+            print("  python search_trending_edge.py edge")
+            print("  python search_trending_edge.py chrome")
+            print("  python search_trending_edge.py brave")
+            print("  python search_trending_edge.py firefox")
+            print("  python search_trending_edge.py chrome --headless")
+            print("\nTo use existing browser:")
+            print("  For Edge: msedge.exe --remote-debugging-port=9222")
+            print("  For Chrome: chrome.exe --remote-debugging-port=9222")
+            print("  For Brave: brave.exe --remote-debugging-port=9222")
+            print("  For Firefox: firefox.exe --marionette-port 9222")
+            print("  Then run: python search_trending_edge.py [browser] --existing")
+            sys.exit(0)
     
     # Check for command line arguments
     if "--headless" in sys.argv:
@@ -765,21 +1272,35 @@ if __name__ == "__main__":
     
     if "--existing" in sys.argv:
         USE_EXISTING = True
-        print("Attempting to use existing Edge browser.")
+        print(f"Attempting to use existing {BROWSER.upper()} browser.")
     
     if "--help" in sys.argv or "-h" in sys.argv:
-        print("Usage: python search_trending_edge.py [--headless] [--existing] [--help]")
+        print("Usage: python search_trending_edge.py [browser] [options]")
+        print("\nBrowser:")
+        print("  edge          Use Microsoft Edge (default)")
+        print("  chrome        Use Google Chrome to search on Bing")
+        print("  brave         Use Brave Browser to search on Bing")
+        print("  firefox       Use Mozilla Firefox to search on Bing")
+        print("\nOptions:")
         print("  --headless    Run browser in headless mode (invisible)")
-        print("  --existing    Connect to existing Edge browser (requires setup)")
+        print("  --existing    Connect to existing browser (requires setup)")
         print("  --help, -h    Show this help message")
-        print("\nTo use existing Edge browser:")
-        print("1. Close all Edge windows")
-        print("2. Open PowerShell and run: msedge.exe --remote-debugging-port=9222")
-        print("3. Then run this script with --existing flag")
+        print("\nExamples:")
+        print("  python search_trending_edge.py edge")
+        print("  python search_trending_edge.py chrome")
+        print("  python search_trending_edge.py brave")
+        print("  python search_trending_edge.py firefox")
+        print("  python search_trending_edge.py chrome --headless")
+        print("\nTo use existing browser:")
+        print("  For Edge: msedge.exe --remote-debugging-port=9222")
+        print("  For Chrome: chrome.exe --remote-debugging-port=9222")
+        print("  For Brave: brave.exe --remote-debugging-port=9222")
+        print("  For Firefox: firefox.exe --marionette-port 9222")
+        print("  Then run: python search_trending_edge.py [browser] --existing")
         sys.exit(0)
 
-    print("Starting Edge search automation...")
-    print(f"Configuration: Headless={HEADLESS}, Wait={MIN_WAIT}-{MAX_WAIT}s, Topics={TOPIC_COUNT}")
+    print(f"Starting {BROWSER.upper()} search automation on Bing...")
+    print(f"Configuration: Browser={BROWSER.upper()}, Headless={HEADLESS}, Wait={MIN_WAIT}-{MAX_WAIT}s, Topics={TOPIC_COUNT}")
     
     # Try to fetch trending queries first
     queries = fetch_trending_queries(limit=200, region='global')
@@ -831,7 +1352,7 @@ if __name__ == "__main__":
             topic = random.choice(variations)
         unique_searches.append(topic)
     
-    print(f"\nStarting Microsoft Rewards-optimized search sequence...")
+    print(f"\nStarting Microsoft Rewards-optimized search sequence on {BROWSER.upper()}...")
     print(f"Tips for maximum reward points:")
     print("- Make sure you're signed into your Microsoft account")
     print("- Don't close the browser window during searches") 
@@ -839,10 +1360,10 @@ if __name__ == "__main__":
     print("- Searches include engagement actions for better reward qualification\n")
     
     try:
-        run_search_sequence(unique_searches, headless=HEADLESS, min_wait=MIN_WAIT, max_wait=MAX_WAIT, use_existing=USE_EXISTING)
+        run_search_sequence(unique_searches, browser=BROWSER, headless=HEADLESS, min_wait=MIN_WAIT, max_wait=MAX_WAIT, use_existing=USE_EXISTING)
     except Exception as e:
         print(f"\nError running search sequence: {e}")
         if USE_EXISTING:
-            print("If using --existing, make sure Edge is running with remote debugging enabled.")
-        print("Please check that Microsoft Edge is installed and EdgeDriver is available.")
+            print(f"If using --existing, make sure {BROWSER.upper()} is running with remote debugging enabled.")
+        print(f"Please check that {BROWSER.upper()} is installed and the corresponding driver is available.")
         sys.exit(1)

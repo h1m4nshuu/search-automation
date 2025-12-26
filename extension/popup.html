@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Search Helper</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="watermark">H1M • Bihar</div>
+    <div class="header">
+      <h1>🔍 Search Topic Helper</h1>
+      <p class="subtitle">Educational Extension Demo</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat-item">
+        <span class="stat-label">Searches Today:</span>
+        <span class="stat-value" id="searchCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Next Search In:</span>
+        <span class="stat-value" id="timer">--</span>
+      </div>
+    </div>
+
+    <div class="current-topic">
+      <h3>Current Topic:</h3>
+      <div class="topic-display" id="currentTopic">Click "Next Topic" to start</div>
+    </div>
+
+    <div class="controls">
+      <button id="nextTopic" class="btn btn-primary">📝 Next Topic</button>
+      <button id="searchBtn" class="btn btn-success">🔍 Search This Topic</button>
+      <button id="autoMode" class="btn btn-warning">⚡ Semi-Auto Mode</button>
+    </div>
+
+    <div class="settings">
+      <label>
+        <input type="checkbox" id="newTabCheck" checked>
+        Open in new tab
+      </label>
+      <label>
+        <input type="checkbox" id="autoScrollCheck" checked>
+        Auto-scroll results
+      </label>
+      <label>
+        Scroll depth: 
+        <input type="range" id="scrollDepth" min="0.3" max="1.0" step="0.1" value="0.7">
+        <span id="scrollDepthValue">70%</span>
+      </label>
+    </div>
+
+    <div class="topic-list">
+      <h3>Today's Topics (<span id="topicCount">0</span>):</h3>
+      <div id="topicListContainer"></div>
+    </div>
+
+    <div class="actions">
+      <button id="generateTopics" class="btn btn-small">🔄 Generate New Topics</button>
+      <button id="resetCount" class="btn btn-small">🗑️ Reset Count</button>
+      <button id="exportTopics" class="btn btn-small">💾 Export Topics</button>
+    </div>
+
+    <div class="footer">
+      <p>⚠️ For educational purposes only</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

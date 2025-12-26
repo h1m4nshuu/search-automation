@@ -1,6 +1,6 @@
 # Edge Search Automation - Fixed for PowerShell
 
-This script automates web searches using Microsoft Edge browser. The script has been fixed to work properly in PowerShell environments.
+This script automates web searches using Microsoft Edge, Chrome, Brave, or Firefox browsers. The script has been fixed to work properly in PowerShell environments.
 
 ## Fixes Applied
 
@@ -65,7 +65,7 @@ If you want the script to control your main Edge browser instead of opening a ne
 
 ## Requirements
 
-- Microsoft Edge browser installed
+- Microsoft Edge, Chrome, Brave, or Firefox browser installed
 - Python virtual environment (`.venv`) in the script directory
 - Required Python packages: `selenium`, `webdriver-manager`, `pytrends` (already installed)
 

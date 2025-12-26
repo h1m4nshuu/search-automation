@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Search Helper - Test</title>
+  <style>
+    body { width: 400px; padding: 20px; font-family: Arial; }
+    button { margin: 5px; padding: 10px; cursor: pointer; }
+    .working { background: green; color: white; }
+    .error { background: red; color: white; }
+  </style>
+</head>
+<body>
+  <h2>Extension Debug Test</h2>
+  
+  <div id="status">Testing...</div>
+  
+  <button id="test1">Test Button 1</button>
+  <button id="test2">Test Button 2</button>
+  
+  <div id="log"></div>
+  
+  <script>
+    function log(msg) {
+      const div = document.getElementById('log');
+      div.innerHTML += '<div>' + msg + '</div>';
+      console.log(msg);
+    }
+    
+    log('Script loaded!');
+    
+    // Test basic functionality
+    document.getElementById('test1').addEventListener('click', () => {
+      log('Button 1 clicked!');
+      document.getElementById('status').textContent = 'WORKING!';
+      document.getElementById('status').className = 'working';
+    });
+    
+    document.getElementById('test2').addEventListener('click', async () => {
+      log('Button 2 clicked!');
+      try {
+        const tabs = await chrome.tabs.query({ active: true });
+        log('Chrome API works! Active tab: ' + tabs[0].title);
+      } catch (e) {
+        log('Error: ' + e.message);
+      }
+    });
+    
+    // Check if popup.js loads
+    log('Checking elements...');
+    log('test1 exists: ' + !!document.getElementById('test1'));
+    log('test2 exists: ' + !!document.getElementById('test2'));
+  </script>
+</body>
+</html>
