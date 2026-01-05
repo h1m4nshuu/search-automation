@@ -772,6 +772,7 @@ def build_firefox_driver(headless=False, window_size=(1200, 800), use_existing=F
     """
     import os
     import shutil
+    import glob
     
     options = FirefoxOptions()
     
@@ -781,10 +782,63 @@ def build_firefox_driver(headless=False, window_size=(1200, 800), use_existing=F
         options.add_argument("--marionette-port")
         options.add_argument(str(debug_port))
     else:
+        # Use existing Firefox profile to stay logged in
+        # Firefox stores profiles in %APPDATA%\Mozilla\Firefox\Profiles
+        original_profiles_dir = os.path.join(os.environ['APPDATA'], 'Mozilla', 'Firefox', 'Profiles')
+        
         # Create automation profile directory
-        firefox_profile_dir = os.path.join(os.environ['LOCALAPPDATA'], 'Mozilla', 'Firefox', 'Profiles Automation')
+        automation_profile_dir = os.path.join(os.environ['LOCALAPPDATA'], 'Mozilla', 'Firefox', 'Profiles', 'Automation')
+        
+        # Find the default Firefox profile (usually ends with .default-release)
+        default_profile = None
+        if os.path.exists(original_profiles_dir):
+            profiles = glob.glob(os.path.join(original_profiles_dir, '*.default-release'))
+            if not profiles:
+                profiles = glob.glob(os.path.join(original_profiles_dir, '*.default'))
+            if profiles:
+                default_profile = profiles[0]
+        
+        # Check if we should copy the default profile
+        if default_profile and os.path.exists(default_profile) and not os.path.exists(automation_profile_dir):
+            print("Copying Firefox profile for automation (one-time setup)...")
+            try:
+                os.makedirs(automation_profile_dir, exist_ok=True)
+                # Copy essential files to maintain login
+                essential_files = ['cookies.sqlite', 'key4.db', 'logins.json', 'prefs.js', 'cert9.db']
+                for item in essential_files:
+                    src = os.path.join(default_profile, item)
+                    if os.path.exists(src):
+                        dst = os.path.join(automation_profile_dir, item)
+                        try:
+                            shutil.copy2(src, dst)
+                        except Exception as e:
+                            print(f"Note: Could not copy {item}: {e}")
+                
+                # Copy sessionstore and other state files if they exist
+                for pattern in ['sessionstore*.js*', 'sessionstore-backups']:
+                    for src_path in glob.glob(os.path.join(default_profile, pattern)):
+                        dst_path = os.path.join(automation_profile_dir, os.path.basename(src_path))
+                        try:
+                            if os.path.isfile(src_path):
+                                shutil.copy2(src_path, dst_path)
+                            elif os.path.isdir(src_path):
+                                shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
+                        except Exception as e:
+                            print(f"Note: Could not copy {os.path.basename(src_path)}: {e}")
+                
+                print("Profile copied successfully!")
+            except Exception as e:
+                print(f"Note: Could not copy profile: {e}")
+                print("Using fresh profile - please sign in to Microsoft account when browser opens")
+        elif not default_profile:
+            print("No default Firefox profile found. Using fresh profile - please sign in to Microsoft account when browser opens")
+            os.makedirs(automation_profile_dir, exist_ok=True)
         
         print(f"Using Firefox automation profile")
+        
+        # Set the profile to use the automation directory
+        options.add_argument("-profile")
+        options.add_argument(automation_profile_dir)
         
         # New browser instance with human-like settings
         if headless:
