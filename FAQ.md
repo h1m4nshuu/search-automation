@@ -12,12 +12,66 @@
 5. [Python & Environment Issues](#python--environment-issues)
 6. [Performance Issues](#performance-issues)
 7. [Microsoft Rewards Issues](#microsoft-rewards-issues)
+8. [**NEW: Rapid Testing Issues (Browser Closing After 2-3 Runs)**](#rapid-testing-issues)
 
 ---
 
 ## Browser Issues
 
-### Q1: Browsers keep logging out every time I run the script
+### Q1: **[NEW] Browsers close after running 2-3 times for testing**
+
+**Problem**: Edge Dev, Opera, Opera GX, and Chromium close automatically when you test the script multiple times in quick succession.
+
+**Root Causes**:
+- Profile lock files from previous runs
+- Lingering browser/driver processes
+- Automation detection from rapid re-runs
+
+**Solution**: ✅ **FIXED** with 3-part system:
+
+**Part 1: Automatic Cleanup**
+- Script now auto-cleans before every run
+- Kills lingering processes
+- Unlocks profile directories
+
+**Part 2: Cooldown Detection**
+- Warns if running < 5 minutes apart
+- Prevents automation detection
+- Allows override if needed
+
+**Part 3: Force-Kill on Failure**
+- Better driver.quit() handling
+- Force-terminates stuck processes
+
+**Quick Fix**:
+```batch
+# Run this if browsers won't start:
+CLEANUP_BROWSERS.bat
+
+# Or in Python:
+python cleanup_browser_processes.py
+
+# Then run normally:
+RUN_BROWSERS.ps1
+```
+
+**For Testing** (rapid runs):
+```bash
+1. Run test
+2. Wait 5 minutes (or run cleanup)
+3. Run next test
+```
+
+**For Daily Use** (no changes needed):
+- Just run once per day
+- Auto-cleanup handles everything
+- No cooldown issues
+
+📖 **See full documentation**: [BROWSER_CLOSING_FIX.md](BROWSER_CLOSING_FIX.md)
+
+---
+
+### Q2: Browsers keep logging out every time I run the script
 
 **Problem**: Selenium launches browsers in temporary/clean state by default.
 
@@ -35,7 +89,7 @@
 
 ---
 
-### Q2: Opera and Opera GX close automatically after some time
+### Q3: Opera and Opera GX close automatically after some time
 
 **Problem**: Opera browsers have aggressive memory/process management.
 
@@ -583,9 +637,252 @@ max_wait=12,  # Reduce from 15
 
 ---
 
+## Rapid Testing Issues
+
+### Q28: I'm testing the script multiple times and browsers close - what's happening?
+
+**Problem**: When testing rapidly (2-3 runs in quick succession), Edge Dev, Opera, Opera GX, and Chromium close unexpectedly.
+
+**Why this happens**:
+1. **Profile locks** - Previous browser didn't fully close, locking profile files
+2. **Zombie processes** - Driver processes (msedgedriver.exe, operadriver.exe) stay running
+3. **Automation detection** - Running same browser 3x in 5 minutes triggers anti-bot systems
+4. **Incomplete cleanup** - driver.quit() sometimes fails silently
+
+**Solution**: The script now has 3-layer protection:
+
+**Layer 1: Pre-Run Cleanup (Automatic)**
+```python
+# Before every run:
+✓ Kill lingering processes
+✓ Unlock profile directories
+✓ Wait for full termination
+```
+
+**Layer 2: Cooldown Detection**
+```
+If run < 5 minutes apart:
+⚠ WARNING: RAPID RE-RUN DETECTED!
+   Wait: 3.2 more minutes
+⚠ Continue anyway? (yes/no):
+```
+
+**Layer 3: Force-Kill on Failure**
+```python
+# In finally block:
+try:
+    driver.quit()
+except:
+    taskkill /F /IM browser.exe  # Force kill
+```
+
+**Quick fix for immediate testing**:
+```batch
+# Between each test run:
+CLEANUP_BROWSERS.bat
+python check_run_cooldown.py reset
+python run_all_browsers_parallel.py
+```
+
+**Best practice for testing**:
+1. Make code changes
+2. Run test → Note results
+3. Wait 5 minutes (or run cleanup)
+4. Run next test
+
+**For daily automation** (no changes):
+- Just run once per day
+- No cooldown issues
+- Auto-cleanup handles everything
+
+📖 **Full documentation**: [BROWSER_CLOSING_FIX.md](BROWSER_CLOSING_FIX.md)
+
+---
+
+### Q29: How do I manually clean up stuck browser processes?
+
+**Quick method**:
+```batch
+# Double-click this file:
+CLEANUP_BROWSERS.bat
+```
+
+**Python method**:
+```bash
+python cleanup_browser_processes.py
+```
+
+**This will**:
+- Kill all browser processes (Edge, Chrome, Firefox, Brave, Opera, Chromium)
+- Kill all driver processes (msedgedriver, chromedriver, geckodriver, operadriver)
+- Remove profile lock files (SingletonLock, SingletonSocket, etc.)
+- Give you a fresh start
+
+**Manual method** (Task Manager):
+1. Open Task Manager (Ctrl+Shift+Esc)
+2. Look for these processes:
+   - `msedge.exe` (Edge/Edge Dev)
+   - `opera.exe` (Opera/Opera GX)
+   - `chromium.exe`
+   - `msedgedriver.exe`
+   - `operadriver.exe`
+   - `chromedriver.exe`
+3. Right-click → End Task
+4. Try running script again
+
+**PowerShell method**:
+```powershell
+# Kill specific browser
+taskkill /F /IM msedge.exe
+taskkill /F /IM opera.exe
+taskkill /F /IM chromium.exe
+
+# Kill all drivers
+taskkill /F /IM msedgedriver.exe
+taskkill /F /IM operadriver.exe
+taskkill /F /IM chromedriver.exe
+```
+
+---
+
+### Q30: What are profile lock files and why do they matter?
+
+**What they are**:
+Lock files prevent multiple browser instances from using the same profile simultaneously.
+
+**Common lock files**:
+- `SingletonLock` - Main profile lock
+- `SingletonSocket` - IPC communication lock
+- `SingletonCookie` - Session lock
+- `LOCK` - Generic lock file
+
+**Where they live**:
+```
+%LOCALAPPDATA%\Microsoft\Edge\User Data Automation\
+%LOCALAPPDATA%\Microsoft\Edge Dev\User Data Automation\
+%LOCALAPPDATA%\Opera Software\Opera Stable Automation\
+%LOCALAPPDATA%\Opera Software\Opera GX Stable Automation\
+%LOCALAPPDATA%\Chromium\User Data Automation\
+```
+
+**Why they cause problems**:
+1. Browser crashes → Lock file stays behind
+2. Next run tries to open profile → Sees lock → Thinks browser is running
+3. New browser instance closes immediately (safety mechanism)
+
+**How script handles them**:
+```python
+# Auto-cleanup before every run:
+for lock_file in ['SingletonLock', 'SingletonSocket', 'LOCK']:
+    if os.path.exists(lock_file):
+        os.remove(lock_file)  # Unlock profile
+```
+
+**Manual removal**:
+1. Navigate to profile directory (see paths above)
+2. Find lock files (may be hidden)
+3. Delete them (only when browser is NOT running)
+4. Try script again
+
+---
+
+### Q31: Why does the script recommend waiting 5 minutes between runs?
+
+**Three reasons**:
+
+**1. Profile Cleanup Time**
+- Browser takes 30-60 seconds to fully close
+- Profile locks need time to release
+- Driver processes need to terminate
+
+**2. Automation Detection**
+- Running same browser 3x in 5 minutes looks robotic
+- Microsoft Rewards has rate limiting
+- Rapid searches can flag your account
+
+**3. Process Conflicts**
+- Multiple driver instances can conflict
+- Port binding issues (WebDriver communication)
+- Memory cleanup for large profiles
+
+**Cooldown benefits**:
+| Waiting Time | Profile Lock Risk | Detection Risk | Process Conflict |
+|--------------|------------------|----------------|------------------|
+| 0-2 minutes  | ❌ High          | ❌ High        | ❌ High          |
+| 2-5 minutes  | ⚠️ Medium        | ⚠️ Medium      | ⚠️ Medium        |
+| 5+ minutes   | ✅ Low           | ✅ Low         | ✅ Low           |
+
+**When cooldown doesn't matter**:
+- Daily automation (once per day)
+- Scheduled tasks (Task Scheduler)
+- Normal usage patterns
+
+**When cooldown matters**:
+- Testing code changes
+- Debugging issues
+- Running manually many times
+
+**Override cooldown** (if needed):
+```bash
+# Reset cooldown timer:
+python check_run_cooldown.py reset
+
+# Or ignore warning:
+# When prompted "Continue anyway? (yes/no):"
+yes  # Type "yes" to proceed
+```
+
+---
+
+### Q32: The cleanup script says "Access Denied" - what do I do?
+
+**Problem**: Some processes can't be killed due to permissions.
+
+**Common causes**:
+1. Browser running as Administrator
+2. Driver process elevated
+3. Antivirus protection
+
+**Solutions**:
+
+**Try 1: Run cleanup as Administrator**
+```batch
+Right-click CLEANUP_BROWSERS.bat → Run as Administrator
+```
+
+**Try 2: Use Task Manager**
+```
+1. Open Task Manager as Admin (Ctrl+Shift+Esc)
+2. Details tab
+3. Find process (msedge.exe, opera.exe, etc.)
+4. Right-click → End Task
+5. Confirm elevated termination
+```
+
+**Try 3: Use PowerShell (Admin)**
+```powershell
+# Open PowerShell as Administrator
+Start-Process powershell -Verb RunAs
+
+# Then run:
+Get-Process | Where-Object {$_.Name -match "edge|opera|chromium|driver"} | Stop-Process -Force
+```
+
+**Try 4: Restart computer**
+- Nuclear option but always works
+- Clears all locks and processes
+- Fresh start
+
+**Prevent future "Access Denied"**:
+- Don't run browsers as Administrator
+- Close browsers normally before testing
+- Use auto-cleanup (built into script now)
+
+---
+
 ## Additional Tips
 
-### Q28: How do I update the script to latest version?
+### Q33: How do I update the script to latest version?
 
 **If using Git**:
 ```cmd

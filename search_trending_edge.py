@@ -25,9 +25,13 @@ Requirements:
 import time
 import random
 import urllib.parse
+import threading
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+
+# Thread-safe lock for driver downloads (prevents parallel download conflicts)
+driver_download_lock = threading.Lock()
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -1004,8 +1008,9 @@ def build_opera_driver(headless=False, window_size=(1200, 800), use_existing=Fal
                 print("Successfully connected!")
                 break
             else:
-                # Retry with downloaded driver
-                service = ChromeService(ChromeDriverManager(driver_version=opera_major_version).install())
+                # Retry with downloaded driver (thread-safe)
+                with driver_download_lock:
+                    service = ChromeService(ChromeDriverManager(driver_version=opera_major_version).install())
                 driver = webdriver.Chrome(service=service, options=options)
                 print("Successfully connected with matching ChromeDriver!")
                 break
@@ -1016,7 +1021,7 @@ def build_opera_driver(headless=False, window_size=(1200, 800), use_existing=Fal
             
             if not use_existing and "version" in error_msg.lower():
                 import re
-                version_match = re.search(r'Current browser version is (\\d+)', error_msg)
+                version_match = re.search(r'Current browser version is (\d+)', error_msg)
                 if version_match and attempt == 0:
                     opera_major_version = version_match.group(1)
                     print(f"Detected Opera v{opera_major_version}, downloading matching ChromeDriver...")
@@ -1176,8 +1181,9 @@ def build_operagx_driver(headless=False, window_size=(1200, 800), use_existing=F
                 print("Successfully connected!")
                 break
             else:
-                # Retry with downloaded driver
-                service = ChromeService(ChromeDriverManager(driver_version=operagx_major_version).install())
+                # Retry with downloaded driver (thread-safe)
+                with driver_download_lock:
+                    service = ChromeService(ChromeDriverManager(driver_version=operagx_major_version).install())
                 driver = webdriver.Chrome(service=service, options=options)
                 print("Successfully connected with matching ChromeDriver!")
                 break
@@ -1258,27 +1264,46 @@ def build_chromium_driver(headless=False, window_size=(1200, 800), use_existing=
         options.add_experimental_option('useAutomationExtension', False)
 
     driver = None
-    try:
-        print("Trying to use ChromeDriver for Chromium...")
-        driver = webdriver.Chrome(options=options)
-        print("Successfully connected!")
-    except Exception as e:
-        error_msg = str(e)
-        print(f"System ChromeDriver failed: {error_msg[:150]}")
-        
-        if not use_existing:
-            try:
-                # Try auto-download
-                print("Downloading latest ChromeDriver...")
-                service = ChromeService(ChromeDriverManager().install())
+    max_retries = 2
+    chromium_major_version = None
+    
+    for attempt in range(max_retries):
+        try:
+            if attempt == 0:
+                print("Trying ChromeDriver for Chromium...")
+                driver = webdriver.Chrome(options=options)
+                print("Successfully connected!")
+                break
+            else:
+                # Retry with downloaded driver matching Chromium version (thread-safe)
+                with driver_download_lock:
+                    service = ChromeService(ChromeDriverManager(driver_version=chromium_major_version).install())
                 driver = webdriver.Chrome(service=service, options=options)
-                print("Successfully connected with downloaded ChromeDriver!")
-            except Exception as e2:
-                print(f"Failed to initialize Chromium driver: {str(e2)[:150]}")
-                print("Consider updating Chromium or using Chrome/Edge instead")
+                print("Successfully connected with matching ChromeDriver!")
+                break
+        except Exception as e:
+            error_msg = str(e)
+            if attempt == 0:
+                print(f"System ChromeDriver failed: {error_msg[:150]}")
+            
+            if not use_existing and "version" in error_msg.lower():
+                import re
+                version_match = re.search(r'Current browser version is (\d+)', error_msg)
+                if version_match and attempt == 0:
+                    chromium_major_version = version_match.group(1)
+                    print(f"Detected Chromium v{chromium_major_version}, downloading matching ChromeDriver...")
+                    # Will retry with correct version on next iteration
+                    continue
+            
+            # If we've exhausted retries or it's not a version issue, raise
+            if attempt == max_retries - 1:
+                print(f"Failed to initialize Chromium after {max_retries} attempts")
+                if not use_existing:
+                    print("Consider updating Chromium or using a different browser")
                 raise
-        else:
-            raise
+    
+    if driver is None:
+        raise Exception("Could not initialize Chromium driver")
     
     return driver
 
@@ -1524,28 +1549,48 @@ def build_edgedev_driver(headless=False, window_size=(1200, 800), use_existing=F
         }
         options.add_experimental_option("prefs", prefs)
 
-    # Try to get Edge Dev driver
+    # Try to get Edge Dev driver with version detection
     driver = None
-    try:
-        print("Trying to use EdgeDriver for Edge Dev...")
-        driver = webdriver.Edge(options=options)
-        print("Successfully connected using EdgeDriver!")
-    except Exception as e:
-        error_msg = str(e)
-        print(f"System EdgeDriver failed: {error_msg[:150]}")
-        
-        if not use_existing:
-            try:
-                print("Downloading latest EdgeDriver...")
-                service = EdgeService(EdgeChromiumDriverManager().install())
+    max_retries = 2
+    edgedev_major_version = None
+    
+    for attempt in range(max_retries):
+        try:
+            if attempt == 0:
+                print("Trying EdgeDriver for Edge Dev...")
+                driver = webdriver.Edge(options=options)
+                print("Successfully connected!")
+                break
+            else:
+                # Retry with downloaded driver matching Edge Dev version (thread-safe)
+                with driver_download_lock:
+                    service = EdgeService(EdgeChromiumDriverManager(driver_version=edgedev_major_version).install())
                 driver = webdriver.Edge(service=service, options=options)
-                print("Successfully connected using downloaded EdgeDriver!")
-            except Exception as e2:
-                print(f"Auto-download EdgeDriver failed: {str(e2)[:150]}")
-                print("Consider updating Edge Dev or using regular Edge instead")
+                print("Successfully connected with matching EdgeDriver!")
+                break
+        except Exception as e:
+            error_msg = str(e)
+            if attempt == 0:
+                print(f"System EdgeDriver failed: {error_msg[:150]}")
+            
+            if not use_existing and "version" in error_msg.lower():
+                import re
+                version_match = re.search(r'Current browser version is (\d+)', error_msg)
+                if version_match and attempt == 0:
+                    edgedev_major_version = version_match.group(1)
+                    print(f"Detected Edge Dev v{edgedev_major_version}, downloading matching EdgeDriver...")
+                    # Will retry with correct version on next iteration
+                    continue
+            
+            # If we've exhausted retries or it's not a version issue, raise
+            if attempt == max_retries - 1:
+                print(f"Failed to initialize Edge Dev after {max_retries} attempts")
+                if not use_existing:
+                    print("Consider updating Edge Dev or using regular Edge instead")
                 raise Exception("Could not initialize EdgeDriver for Edge Dev")
-        else:
-            raise Exception("Could not connect to existing Edge Dev browser")
+    
+    if driver is None:
+        raise Exception("Could not initialize Edge Dev driver")
     
     # Make browser appear more human-like
     try:
@@ -1646,7 +1691,15 @@ def ensure_rewards_eligible_behavior(driver):
         print(f"  -> Could not perform engagement actions: {e}")
 
 def run_search_sequence(topics, browser='edge', headless=False, min_wait=50, max_wait=55, use_existing=False):
-    driver = build_browser_driver(browser=browser, headless=headless, use_existing=use_existing)
+    driver = None
+    try:
+        print(f"[{browser.upper()}] Building driver...")
+        driver = build_browser_driver(browser=browser, headless=headless, use_existing=use_existing)
+        print(f"[{browser.upper()}] Driver initialized successfully!")
+    except Exception as e:
+        print(f"[{browser.upper()}] FATAL: Failed to initialize driver: {e}")
+        raise  # Re-raise to be caught by run_browser_searches
+    
     try:
         # Navigate to Bing and check for Microsoft account
         print(f"Initializing Bing in {browser.upper()} and checking Microsoft Rewards eligibility...")
@@ -1787,8 +1840,34 @@ def run_search_sequence(topics, browser='edge', headless=False, min_wait=50, max
             time.sleep(wait_time)
 
     finally:
-        print("All searches finished. Closing browser.")
-        driver.quit()
+        if driver:
+            print("All searches finished. Closing browser.")
+            try:
+                driver.quit()
+                time.sleep(1)  # Give the driver time to fully terminate
+            except Exception as e:
+                print(f"Warning during browser cleanup: {e}")
+            # Force kill if quit() failed
+            try:
+                import subprocess
+                # Try to kill the process if driver didn't quit properly
+                if browser == 'opera' or browser == 'operagx':
+                    subprocess.run(['taskkill', '/F', '/IM', 'opera.exe'], 
+                                 capture_output=True, timeout=3)
+                    subprocess.run(['taskkill', '/F', '/IM', 'operadriver.exe'], 
+                                 capture_output=True, timeout=3)
+                elif browser == 'chromium':
+                    subprocess.run(['taskkill', '/F', '/IM', 'chromium.exe'], 
+                                 capture_output=True, timeout=3)
+                    subprocess.run(['taskkill', '/F', '/IM', 'chromedriver.exe'], 
+                                 capture_output=True, timeout=3)
+                elif browser == 'edgedev':
+                    subprocess.run(['taskkill', '/F', '/IM', 'msedge.exe'], 
+                                 capture_output=True, timeout=3)
+                    subprocess.run(['taskkill', '/F', '/IM', 'msedgedriver.exe'], 
+                                 capture_output=True, timeout=3)
+            except:
+                pass
 
 if __name__ == "__main__":
     import sys

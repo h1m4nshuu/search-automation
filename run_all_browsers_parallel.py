@@ -19,6 +19,8 @@ import threading
 sys.path.append(r'C:\Users\himan\Desktop\edge search')
 
 from search_trending_edge import run_search_sequence, generate_dynamic_topics, fetch_trending_queries
+from cleanup_browser_processes import kill_browser_processes, unlock_browser_profiles
+from check_run_cooldown import check_run_cooldown, save_run_timestamp
 import random
 
 # Thread-safe results tracking
@@ -54,9 +56,12 @@ def run_browser_searches(browser, topics, browser_num):
             browser_results[browser] = {'status': 'failed', 'error': str(e)}
 
 def run_all_browsers_parallel():
-    """Run 30 searches on each of the 8 browsers simultaneously"""
+    """Run 30 searches on each of the 8 browsers in 2 batches (prevents system overload)"""
     
-    browsers = ['edge', 'chrome', 'firefox', 'brave', 'opera', 'edgedev', 'operagx', 'chromium']
+    # Split browsers into 2 batches to prevent resource overload
+    batch1 = ['edge', 'chrome', 'firefox', 'brave']
+    batch2 = ['opera', 'edgedev', 'operagx', 'chromium']
+    all_browsers = batch1 + batch2
     TOPIC_COUNT = 30
     
     # H1M Watermark
@@ -72,19 +77,20 @@ def run_all_browsers_parallel():
     print("   ═══════════════════════════")
     print()
     print("=" * 70)
-    print("PARALLEL MULTI-BROWSER SEARCH AUTOMATION (8 Browsers)")
+    print("BATCH MODE: 8 Browsers in 2 Groups (Prevents System Overload)")
     print("=" * 70)
     print(f"Configuration:")
-    print(f"  - Browsers: Edge, Chrome, Firefox, Brave, Opera, Edge Dev, Opera GX, Chromium")
+    print(f"  - Batch 1: Edge, Chrome, Firefox, Brave (4 browsers)")
+    print(f"  - Batch 2: Opera, Edge Dev, Opera GX, Chromium (4 browsers)")
     print(f"  - Searches per browser: {TOPIC_COUNT}")
-    print(f"  - Total searches: {TOPIC_COUNT * len(browsers)}")
-    print(f"  - Execution: PARALLEL (all browsers at once)")
+    print(f"  - Total searches: {TOPIC_COUNT * len(all_browsers)}")
+    print(f"  - Execution: 4 browsers at a time (prevents crashes)")
     print("=" * 70)
     print()
     
     # Generate enough topics for all browsers
     print("Generating search topics...")
-    total_needed = TOPIC_COUNT * len(browsers)
+    total_needed = TOPIC_COUNT * len(all_browsers)
     
     # Fetch trending queries (aim for 2x needed to account for duplicates)
     queries = fetch_trending_queries(limit=total_needed * 2, region='global')
@@ -126,6 +132,30 @@ def run_all_browsers_parallel():
     
     print(f"[OK] Prepared {len(queries)} unique topics for {total_needed} searches\n")
     
+    # **NEW**: Check run cooldown to prevent rapid re-runs
+    print("=" * 70)
+    print("⏱ CHECKING RUN COOLDOWN")
+    print("=" * 70)
+    
+    should_proceed, minutes_since, cooldown_msg = check_run_cooldown()
+    print(cooldown_msg)
+    
+    if not should_proceed:
+        # User ran too quickly - prompt for confirmation
+        print("\n" + "!" * 70)
+        response = input("\n⚠ Continue anyway? (yes/no): ").strip().lower()
+        print("!" * 70 + "\n")
+        
+        if response not in ['yes', 'y']:
+            print("✓ Run cancelled. Recommendation:")
+            print("  1. Wait 5 minutes between runs (prevents browser issues)")
+            print("  2. Or run: CLEANUP_BROWSERS.bat")
+            print("  3. Then try again\n")
+            return
+        else:
+            print("⚠ Proceeding despite cooldown warning...\n")
+            save_run_timestamp()  # Update timestamp since user chose to proceed
+    
     # Filter out browsers that aren't installed (check common paths)
     import os
     available_browsers = []
@@ -155,7 +185,7 @@ def run_all_browsers_parallel():
     }
     
     print("[INFO] Checking browser availability...")
-    for browser in browsers:
+    for browser in all_browsers:
         # Always include the first 4 browsers (assume they're installed)
         if browser in ['edge', 'chrome', 'firefox', 'brave']:
             available_browsers.append(browser)
@@ -170,12 +200,15 @@ def run_all_browsers_parallel():
         else:
             available_browsers.append(browser)
     
-    browsers = available_browsers
-    print(f"\n[INFO] Running with {len(browsers)} available browsers\n")
+    # Update batch lists based on available browsers
+    batch1 = [b for b in batch1 if b in available_browsers]
+    batch2 = [b for b in batch2 if b in available_browsers]
+    print(f"\n[INFO] Running with {len(available_browsers)} available browsers")
+    print(f"        Batch 1: {len(batch1)} browsers | Batch 2: {len(batch2)} browsers\n")
     
     # Prepare topics for each browser
     browser_topics = {}
-    for i, browser in enumerate(browsers):
+    for i, browser in enumerate(available_browsers):
         start_idx = i * TOPIC_COUNT
         topics = queries[start_idx:start_idx + TOPIC_COUNT]
         
@@ -202,32 +235,72 @@ def run_all_browsers_parallel():
             print(f"  {idx}. {topic}")
         print(f"  ... and {len(unique_searches) - 3} more\n")
     
-    # Create threads for each browser
-    threads = []
-    print("=" * 70)
-    print("LAUNCHING ALL BROWSERS IN PARALLEL...")
-    print("=" * 70)
-    print()
-    
-    for i, browser in enumerate(browsers, 1):
-        thread = threading.Thread(
-            target=run_browser_searches,
-            args=(browser, browser_topics[browser], i),
-            name=f"{browser.upper()}-Thread"
-        )
-        threads.append(thread)
-        thread.start()
-        time.sleep(2)  # Small delay to avoid simultaneous browser launches
-    
-    # Wait for all threads to complete
-    print(f"\nWaiting for all {len(browsers)} browsers to complete...\n")
-    
-    for thread in threads:
-        thread.join()
-    
-    # Display results
+    # **NEW**: Pre-cleanup to prevent profile locks and lingering processes
     print("\n" + "=" * 70)
-    print("ALL BROWSERS COMPLETED!")
+    print("🧹 PRE-RUN CLEANUP (Prevents browser closing issues)")
+    print("=" * 70)
+    
+    try:
+        killed = kill_browser_processes()
+        time.sleep(2)  # Wait for processes to fully terminate
+        unlocked = unlock_browser_profiles()
+        
+        if killed > 0 or unlocked > 0:
+            print(f"\n✓ Cleanup complete! Killed {killed} processes, unlocked {unlocked} profiles")
+            print("⏳ Waiting 3 seconds before starting browsers...\n")
+            time.sleep(3)
+        else:
+            print("\n✓ System clean - no lingering processes or locks\n")
+    except Exception as e:
+        print(f"⚠ Cleanup warning: {e}")
+        print("Continuing anyway...\n")
+    
+    # Run browsers in 2 batches
+    for batch_num, batch in enumerate([batch1, batch2], 1):
+        print("=" * 70)
+        print(f"📦 BATCH {batch_num}/2: {', '.join([b.upper() for b in batch])}")
+        print("=" * 70)
+        print(f"⏱ Starting {len(batch)} browsers with 3-second delays...")
+        print()
+        
+        threads = []
+        for i, browser in enumerate(batch, 1):
+            thread = threading.Thread(
+                target=run_browser_searches,
+                args=(browser, browser_topics[browser], i),
+                name=f"{browser.upper()}-Thread"
+            )
+            threads.append(thread)
+            thread.start()
+            print(f"[{i}/{len(batch)}] ✓ Started {browser.upper()}")
+            
+            # Stagger browser launches with 3-second delay (except for last one)
+            if i < len(batch):
+                time.sleep(3)
+                print(f"      ⏳ Waiting 3 seconds before starting next browser...")
+        
+        print()
+        print(f"⏳ Waiting for Batch {batch_num} browsers to complete...")
+        print("=" * 70)
+        
+        # Wait for all threads in this batch to complete
+        for thread in threads:
+            thread.join()
+        
+        print()
+        print(f"✅ BATCH {batch_num} COMPLETE!")
+        print("=" * 70)
+        
+        # Brief pause between batches
+        if batch_num == 1:
+            print()
+            print("⏳ Brief pause before starting Batch 2...")
+            time.sleep(5)
+            print()
+    
+    # Display final results
+    print("\n" + "=" * 70)
+    print("🎉 ALL 8 BROWSERS COMPLETED!")
     print("=" * 70)
     
     successful = 0

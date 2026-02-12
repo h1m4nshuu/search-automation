@@ -28,6 +28,23 @@ Earn Microsoft Rewards points effortlessly by automating Bing searches across mu
 
 **Having issues?** Check [❓ FAQ](FAQ.md) or [🔧 Troubleshooting](TROUBLESHOOTING.md)
 
+**🆕 NEW: Browser Closing Fix** - If browsers close after 2-3 test runs, see [🔧 Browser Closing Fix](BROWSER_CLOSING_FIX.md)
+
+---
+
+## 🚨 NEW: Auto-Cleanup & Cooldown System
+
+The script now automatically prevents browser closing issues:
+- ✅ **Auto-cleanup** before every run (kills lingering processes, unlocks profiles)
+- ✅ **Cooldown detection** warns if running < 5 minutes apart
+- ✅ **Force-kill** handles stuck browser processes
+- ✅ **Manual cleanup** tool included (CLEANUP_BROWSERS.bat)
+
+**For testing**: Wait 5 minutes between runs or use cleanup tool  
+**For daily use**: No changes needed - auto-cleanup handles everything
+
+📖 Full details: [BROWSER_CLOSING_FIX.md](BROWSER_CLOSING_FIX.md) | [QUICK_START.md](QUICK_START.md)
+
 ---
 
 ## 📋 Documentation
