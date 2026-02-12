@@ -84,17 +84,21 @@ def run_all_browsers_parallel():
     
     # Generate enough topics for all browsers
     print("Generating search topics...")
-    queries = fetch_trending_queries(limit=300, region='global')
+    total_needed = TOPIC_COUNT * len(browsers)
+    
+    # Fetch trending queries (aim for 2x needed to account for duplicates)
+    queries = fetch_trending_queries(limit=total_needed * 2, region='global')
     
     if not queries:
         print("Couldn't fetch live trending queries; generating dynamic topics...")
-        queries = generate_dynamic_topics(TOPIC_COUNT * len(browsers) * 5)  # Generate 5x more to ensure enough
+        queries = generate_dynamic_topics(total_needed * 3)  # Generate 3x to ensure enough after deduplication
     else:
-        print(f"Using {len(queries)} trending queries from pytrends...")
-        dynamic_topics = generate_dynamic_topics(TOPIC_COUNT * len(browsers) * 4)  # Generate 4x more
+        print(f"Fetched {len(queries)} trending queries from pytrends...")
+        # Add dynamic topics to supplement
+        dynamic_topics = generate_dynamic_topics(total_needed * 2)
         queries.extend(dynamic_topics)
     
-    # Remove duplicates
+    # Remove duplicates efficiently
     unique_queries = []
     seen = set()
     for query in queries:
@@ -102,15 +106,16 @@ def run_all_browsers_parallel():
         if query_lower not in seen:
             unique_queries.append(query)
             seen.add(query_lower)
+            # Stop early if we have enough
+            if len(unique_queries) >= total_needed:
+                break
     
     queries = unique_queries
     
-    # Ensure we have enough topics
-    total_needed = TOPIC_COUNT * len(browsers)
-    while len(queries) < total_needed:
-        print(f"[WARNING] Need {total_needed} topics but only have {len(queries)}, generating more...")
+    # Final check - generate more only if still needed (should rarely happen now)
+    if len(queries) < total_needed:
         shortage = total_needed - len(queries)
-        additional = generate_dynamic_topics(shortage * 3)  # Generate 3x the shortage
+        additional = generate_dynamic_topics(shortage + 20)  # Generate a bit extra as buffer
         for query in additional:
             query_lower = query.lower()
             if query_lower not in seen:
@@ -119,7 +124,7 @@ def run_all_browsers_parallel():
                 if len(queries) >= total_needed:
                     break
     
-    print(f"[OK] Generated {len(queries)} unique topics (need {total_needed})\n")
+    print(f"[OK] Prepared {len(queries)} unique topics for {total_needed} searches\n")
     
     # Filter out browsers that aren't installed (check common paths)
     import os
