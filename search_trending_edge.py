@@ -3,7 +3,7 @@ search_trending_edge.py
 
 Multi-Browser Selenium script that:
 - chooses 30 trending topics (via pytrends if available, otherwise fallback list),
-- opens each topic in specified browser (Edge, Chrome, Brave, or Firefox),
+- opens each topic in specified browser (Edge, Chrome, Brave, Firefox, Opera, Vivaldi, Opera GX, or Chromium),
 - scrolls the page in human-like steps,
 - waits a random interval around 15 seconds between searches.
 
@@ -12,10 +12,14 @@ Usage:
   python search_trending_edge.py chrome        # Search in Chrome (Bing)
   python search_trending_edge.py brave         # Search in Brave (Bing)
   python search_trending_edge.py firefox       # Search in Firefox (Bing)
+  python search_trending_edge.py opera         # Search in Opera (Bing)
+  python search_trending_edge.py vivaldi       # Search in Vivaldi (Bing)
+  python search_trending_edge.py operagx       # Search in Opera GX (Bing)
+  python search_trending_edge.py chromium      # Search in Chromium (Bing)
 
 Requirements:
   pip install selenium webdriver-manager pytrends
-  Microsoft Edge, Chrome, Brave, or Firefox browser installed on the machine.
+  Microsoft Edge, Chrome, Brave, Firefox, Opera, Vivaldi, Opera GX, or Chromium browser installed on the machine.
 """
 
 import time
@@ -238,57 +242,62 @@ def human_type(element, text, min_delay=0.05, max_delay=0.25):
 def human_mouse_movement(driver, element):
     """
     Moves mouse to element in a human-like curved path.
+    Falls back to direct methods if movement fails.
     """
-    actions = ActionChains(driver)
-    
-    # Get current window size for realistic movement
-    window_size = driver.get_window_size()
-    
-    # Simulate moving mouse from random starting position
-    start_x = random.randint(100, window_size['width'] - 100)
-    start_y = random.randint(100, window_size['height'] - 100)
-    
-    # Get element location
-    element_location = element.location
-    element_size = element.size
-    target_x = element_location['x'] + element_size['width'] // 2
-    target_y = element_location['y'] + element_size['height'] // 2
-    
-    # Create curved movement path
-    steps = random.randint(8, 15)
-    for step in range(steps):
-        progress = step / steps
+    try:
+        # First try to scroll element into view
+        driver.execute_script("arguments[0].scrollIntoView({behavior: 'smooth', block: 'center'});", element)
+        time.sleep(random.uniform(0.3, 0.6))
         
-        # Add some curve and randomness
-        curve_offset_x = random.randint(-20, 20) * (1 - progress)
-        curve_offset_y = random.randint(-15, 15) * (1 - progress)
-        
-        current_x = start_x + (target_x - start_x) * progress + curve_offset_x
-        current_y = start_y + (target_y - start_y) * progress + curve_offset_y
-        
-        # Small random delay between movements
-        time.sleep(random.uniform(0.01, 0.03))
-    
-    # Final move to exact element
-    actions.move_to_element(element).perform()
-    time.sleep(random.uniform(0.1, 0.3))
+        actions = ActionChains(driver)
+        # Try simple move_to_element first (safest method)
+        actions.move_to_element(element).perform()
+        time.sleep(random.uniform(0.1, 0.3))
+    except Exception as e:
+        # If mouse movement fails, just ensure element is visible and skip animation
+        try:
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+            time.sleep(random.uniform(0.1, 0.2))
+        except:
+            pass  # Element might already be visible
 
 def human_click(driver, element):
     """
     Performs a human-like click with mouse movement and realistic timing.
+    Uses multiple fallback methods to ensure reliability.
     """
-    # Move mouse to element first
-    human_mouse_movement(driver, element)
-    
-    # Brief pause before clicking (like humans do)
-    time.sleep(random.uniform(0.1, 0.4))
-    
-    # Click with slight randomness in timing
-    actions = ActionChains(driver)
-    actions.click(element).perform()
-    
-    # Brief pause after click
-    time.sleep(random.uniform(0.1, 0.3))
+    # Try human-like movement and click
+    try:
+        # Move mouse to element first
+        human_mouse_movement(driver, element)
+        # Brief pause before clicking (like humans do)
+        time.sleep(random.uniform(0.1, 0.4))
+        # Click with ActionChains
+        actions = ActionChains(driver)
+        actions.click(element).perform()
+        time.sleep(random.uniform(0.1, 0.3))
+        return
+    except Exception as e1:
+        # Fallback 1: Try direct element click
+        try:
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+            time.sleep(random.uniform(0.2, 0.4))
+            element.click()
+            time.sleep(random.uniform(0.1, 0.3))
+            return
+        except Exception as e2:
+            # Fallback 2: JavaScript click (most reliable)
+            try:
+                driver.execute_script("arguments[0].click();", element)
+                time.sleep(random.uniform(0.1, 0.3))
+                return
+            except Exception as e3:
+                # Last resort: Try to focus and send Enter key
+                try:
+                    element.send_keys('')  # Focus element
+                    time.sleep(random.uniform(0.1, 0.2))
+                except:
+                    pass  # Give up gracefully
 
 def simulate_reading_behavior(driver):
     """
@@ -440,10 +449,10 @@ def click_search_result(driver):
 
 def build_browser_driver(browser='edge', headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
     """
-    Build a browser driver for Edge, Chrome, Brave, or Firefox.
+    Build a browser driver for Edge, Chrome, Brave, Firefox, Opera, Vivaldi, Opera GX, or Chromium.
     
     Args:
-        browser: 'edge', 'chrome', 'brave', or 'firefox'
+        browser: 'edge', 'chrome', 'brave', 'firefox', 'opera', 'vivaldi', 'operagx', or 'chromium'
         headless: Run browser in headless mode
         window_size: Initial window size
         use_existing: Connect to existing browser
@@ -456,6 +465,14 @@ def build_browser_driver(browser='edge', headless=False, window_size=(1200, 800)
         return build_brave_driver(headless, window_size, use_existing, debug_port)
     elif browser_lower == 'firefox':
         return build_firefox_driver(headless, window_size, use_existing, debug_port)
+    elif browser_lower == 'opera':
+        return build_opera_driver(headless, window_size, use_existing, debug_port)
+    elif browser_lower == 'edgedev':
+        return build_edgedev_driver(headless, window_size, use_existing, debug_port)
+    elif browser_lower == 'operagx':
+        return build_operagx_driver(headless, window_size, use_existing, debug_port)
+    elif browser_lower == 'chromium':
+        return build_chromium_driver(headless, window_size, use_existing, debug_port)
     else:
         return build_edge_driver(headless, window_size, use_existing, debug_port)
 
@@ -908,6 +925,347 @@ def build_firefox_driver(headless=False, window_size=(1200, 800), use_existing=F
 
     return driver
 
+def build_opera_driver(headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
+    """
+    Build Opera driver with human-like settings (uses ChromeDriver).
+    Uses persistent profile to maintain Microsoft account login.
+    """
+    import os
+    import shutil
+    
+    options = ChromeOptions()
+    
+    if use_existing:
+        print(f"Connecting to existing Opera browser on port {debug_port}...")
+        options.add_experimental_option("debuggerAddress", f"127.0.0.1:{debug_port}")
+    else:
+        # Set Opera binary location
+        opera_paths = [
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'Opera', 'opera.exe'),
+            os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 'Opera', 'opera.exe'),
+            os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 'Opera', 'launcher.exe'),
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'Opera', 'launcher.exe')
+        ]
+        
+        opera_binary = None
+        for path in opera_paths:
+            if os.path.exists(path):
+                opera_binary = path
+                break
+        
+        if opera_binary:
+            options.binary_location = opera_binary
+            print(f"Found Opera at: {opera_binary}")
+        else:
+            print("Warning: Could not find Opera browser. Please install Opera.")
+            raise Exception("Opera browser not found")
+        
+        # Add persistent profile for Opera
+        automation_profile_dir = os.path.join(os.environ['LOCALAPPDATA'], 'Opera Software', 'Opera Stable Automation')
+        os.makedirs(automation_profile_dir, exist_ok=True)
+        print(f"Using Opera automation profile: {automation_profile_dir}")
+        options.add_argument(f"--user-data-dir={automation_profile_dir}")
+        
+        # Stability flags to prevent Opera from closing automatically
+        options.add_argument("--disable-background-timer-throttling")
+        options.add_argument("--disable-renderer-backgrounding")
+        options.add_argument("--disable-backgrounding-occluded-windows")
+        options.add_argument("--disable-ipc-flooding-protection")
+        options.add_argument("--disable-hang-monitor")
+        
+        # Single tab behavior - prevent new tabs from opening
+        options.add_argument("--disable-popup-blocking")  # Don't block, but don't open new tabs
+        options.add_experimental_option("prefs", {
+            "profile.default_content_setting_values.popups": 0,  # Allow popups in same tab
+            "profile.default_content_settings.popups": 0
+        })
+        
+        if headless:
+            options.add_argument("--headless=new")
+        
+        width = random.randint(1200, 1600)
+        height = random.randint(800, 1000)
+        options.add_argument(f"--window-size={width},{height}")
+        options.add_argument("--no-first-run")
+        options.add_argument("--no-default-browser-check")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+        options.add_experimental_option('useAutomationExtension', False)
+
+    driver = None
+    try:
+        print("Trying ChromeDriver for Opera...")
+        driver = webdriver.Chrome(options=options)
+        print("Successfully connected!")
+    except Exception as e:
+        error_msg = str(e)
+        print(f"System ChromeDriver failed: {error_msg[:100]}")
+        if not use_existing:
+            # Extract Opera version and download matching ChromeDriver
+            if "version" in error_msg.lower() and "current browser version is" in error_msg.lower():
+                try:
+                    # Try to get compatible driver from webdriver-manager
+                    import re
+                    version_match = re.search(r'Current browser version is (\d+)', error_msg)
+                    if version_match:
+                        opera_major_version = version_match.group(1)
+                        print(f"Downloading ChromeDriver for version {opera_major_version}...")
+                        try:
+                            service = ChromeService(ChromeDriverManager(driver_version=opera_major_version).install())
+                            driver = webdriver.Chrome(service=service, options=options)
+                            print("Successfully connected with matching ChromeDriver!")
+                        except:
+                            print(f"Could not find ChromeDriver for Opera v{opera_major_version}")
+                            print("Opera versions change frequently - consider using Edge/Chrome/Firefox instead")
+                            raise
+                except Exception as e2:
+                    print(f"Failed to initialize Opera: {str(e2)[:100]}")
+                    raise
+            else:
+                raise
+        else:
+            raise
+    
+    if driver is None:
+        raise Exception("Could not initialize Opera driver")
+    
+    return driver
+
+def build_vivaldi_driver(headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
+    """
+    Build Vivaldi driver with human-like settings (uses ChromeDriver).
+    """
+    import os
+    
+    options = ChromeOptions()
+    
+    if use_existing:
+        print(f"Connecting to existing Vivaldi browser on port {debug_port}...")
+        options.add_experimental_option("debuggerAddress", f"127.0.0.1:{debug_port}")
+    else:
+        # Set Vivaldi binary location
+        vivaldi_paths = [
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Vivaldi', 'Application', 'vivaldi.exe'),
+            os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 'Vivaldi', 'Application', 'vivaldi.exe')
+        ]
+        
+        vivaldi_binary = None
+        for path in vivaldi_paths:
+            if os.path.exists(path):
+                vivaldi_binary = path
+                break
+        
+        if vivaldi_binary:
+            options.binary_location = vivaldi_binary
+            print(f"Found Vivaldi at: {vivaldi_binary}")
+        else:
+            print("Warning: Could not find Vivaldi browser. Please install Vivaldi.")
+            raise Exception("Vivaldi browser not found")
+        
+        if headless:
+            options.add_argument("--headless=new")
+        
+        width = random.randint(1200, 1600)
+        height = random.randint(800, 1000)
+        options.add_argument(f"--window-size={width},{height}")
+        options.add_argument("--no-first-run")
+        options.add_argument("--no-default-browser-check")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+        options.add_experimental_option('useAutomationExtension', False)
+
+    driver = None
+    
+    # Note: Vivaldi often has ChromeDriver version incompatibility
+    # Try basic connection without version-specific drivers
+    try:
+        print("Trying ChromeDriver for Vivaldi (may fail due to version mismatch)...")
+        # Disable version check
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--no-sandbox")
+        driver = webdriver.Chrome(options=options)
+        print("Successfully connected!")
+    except Exception as e:
+        error_msg = str(e)
+        if "version" in error_msg.lower():
+            print(f"[SKIP] Vivaldi has ChromeDriver version incompatibility.")
+            print("[INFO] Vivaldi uses different versioning - skipping this browser.")
+        else:
+            print(f"Failed to initialize Vivaldi: {error_msg[:150]}")
+        raise Exception("Vivaldi driver initialization failed - version incompatible")
+    
+    return driver
+
+def build_operagx_driver(headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
+    """
+    Build Opera GX driver with human-like settings (uses ChromeDriver).
+    Uses persistent profile to maintain Microsoft account login.
+    """
+    import os
+    
+    options = ChromeOptions()
+    
+    if use_existing:
+        print(f"Connecting to existing Opera GX browser on port {debug_port}...")
+        options.add_experimental_option("debuggerAddress", f"127.0.0.1:{debug_port}")
+    else:
+        # Set Opera GX binary location
+        operagx_paths = [
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'Opera GX', 'opera.exe'),
+            os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 'Opera GX', 'opera.exe'),
+            os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 'Opera GX', 'launcher.exe'),
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs', 'Opera GX', 'launcher.exe')
+        ]
+        
+        operagx_binary = None
+        for path in operagx_paths:
+            if os.path.exists(path):
+                operagx_binary = path
+                break
+        
+        if operagx_binary:
+            options.binary_location = operagx_binary
+            print(f"Found Opera GX at: {operagx_binary}")
+        else:
+            print("Warning: Could not find Opera GX browser. Please install Opera GX.")
+            raise Exception("Opera GX browser not found")
+        
+        # Add persistent profile for Opera GX
+        automation_profile_dir = os.path.join(os.environ['LOCALAPPDATA'], 'Opera Software', 'Opera GX Stable Automation')
+        os.makedirs(automation_profile_dir, exist_ok=True)
+        print(f"Using Opera GX automation profile: {automation_profile_dir}")
+        options.add_argument(f"--user-data-dir={automation_profile_dir}")
+        
+        # Stability flags to prevent Opera GX from closing automatically
+        options.add_argument("--disable-background-timer-throttling")
+        options.add_argument("--disable-renderer-backgrounding")
+        options.add_argument("--disable-backgrounding-occluded-windows")
+        options.add_argument("--disable-ipc-flooding-protection")
+        options.add_argument("--disable-hang-monitor")
+        
+        # Single tab behavior - prevent new tabs from opening for each search
+        options.add_argument("--disable-popup-blocking")  # Don't block, but don't open new tabs
+        options.add_experimental_option("prefs", {
+            "profile.default_content_setting_values.popups": 0,  # Allow popups in same tab
+            "profile.default_content_settings.popups": 0
+        })
+        
+        if headless:
+            options.add_argument("--headless=new")
+        
+        width = random.randint(1200, 1600)
+        height = random.randint(800, 1000)
+        options.add_argument(f"--window-size={width},{height}")
+        options.add_argument("--no-first-run")
+        options.add_argument("--no-default-browser-check")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+        options.add_experimental_option('useAutomationExtension', False)
+
+    driver = None
+    try:
+        print("Trying ChromeDriver for Opera GX...")
+        driver = webdriver.Chrome(options=options)
+        print("Successfully connected!")
+    except Exception as e:
+        error_msg = str(e)
+        print(f"System ChromeDriver failed: {error_msg[:100]}")
+        if not use_existing:
+            # Extract Opera GX version and download matching ChromeDriver
+            if "version" in error_msg.lower() and "current browser version is" in error_msg.lower():
+                try:
+                    # Try to get compatible driver from webdriver-manager
+                    import re
+                    version_match = re.search(r'Current browser version is (\d+)', error_msg)
+                    if version_match:
+                        operagx_major_version = version_match.group(1)
+                        print(f"Downloading ChromeDriver for version {operagx_major_version}...")
+                        try:
+                            service = ChromeService(ChromeDriverManager(driver_version=operagx_major_version).install())
+                            driver = webdriver.Chrome(service=service, options=options)
+                            print("Successfully connected with matching ChromeDriver!")
+                        except:
+                            print(f"Could not find ChromeDriver for Opera GX v{operagx_major_version}")
+                            print("Opera GX versions change frequently - consider using Edge/Chrome/Firefox instead")
+                            raise
+                except Exception as e2:
+                    print(f"Failed to initialize Opera GX: {str(e2)[:100]}")
+                    raise
+            else:
+                raise
+        else:
+            raise
+    
+    if driver is None:
+        raise Exception("Could not initialize Opera GX driver")
+    
+    return driver
+
+def build_chromium_driver(headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
+    """
+    Build Chromium driver with human-like settings.
+    Uses persistent profile to maintain Microsoft account login.
+    """
+    import os
+    
+    options = ChromeOptions()
+    
+    if use_existing:
+        print(f"Connecting to existing Chromium browser on port {debug_port}...")
+        options.add_experimental_option("debuggerAddress", f"127.0.0.1:{debug_port}")
+    else:
+        # Set Chromium binary location
+        chromium_paths = [
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Chromium', 'Application', 'chrome.exe'),
+            os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 'Chromium', 'Application', 'chrome.exe'),
+            os.path.join(os.environ.get('PROGRAMFILES(X86)', 'C:\\Program Files (x86)'), 'Chromium', 'Application', 'chrome.exe')
+        ]
+        
+        chromium_binary = None
+        for path in chromium_paths:
+            if os.path.exists(path):
+                chromium_binary = path
+                break
+        
+        if chromium_binary:
+            options.binary_location = chromium_binary
+            print(f"Found Chromium at: {chromium_binary}")
+        else:
+            print("Warning: Could not find Chromium browser. Please install Chromium.")
+            raise Exception("Chromium browser not found")
+        
+        # Add persistent profile for Chromium
+        automation_profile_dir = os.path.join(os.environ['LOCALAPPDATA'], 'Chromium', 'User Data Automation')
+        os.makedirs(automation_profile_dir, exist_ok=True)
+        print(f"Using Chromium automation profile: {automation_profile_dir}")
+        options.add_argument(f"--user-data-dir={automation_profile_dir}")
+        
+        if headless:
+            options.add_argument("--headless=new")
+        
+        width = random.randint(1200, 1600)
+        height = random.randint(800, 1000)
+        options.add_argument(f"--window-size={width},{height}")
+        options.add_argument("--no-first-run")
+        options.add_argument("--no-default-browser-check")
+        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+        options.add_experimental_option('useAutomationExtension', False)
+
+    try:
+        print("Trying to use ChromeDriver for Chromium...")
+        driver = webdriver.Chrome(options=options)
+        print("Successfully connected!")
+    except Exception as e:
+        print(f"ChromeDriver failed: {e}")
+        try:
+            service = ChromeService(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=options)
+        except Exception as e2:
+            print(f"Failed to initialize Chromium driver: {e2}")
+            raise
+    
+    return driver
+
 def build_edge_driver(headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
     import os
     import shutil
@@ -1051,6 +1409,137 @@ def build_edge_driver(headless=False, window_size=(1200, 800), use_existing=Fals
 
     return driver
 
+def build_edgedev_driver(headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
+    """
+    Build Microsoft Edge Dev driver (separate from stable Edge).
+    Useful as an alternative to Vivaldi since it's Chromium-based and stable.
+    """
+    import os
+    import shutil
+    
+    options = EdgeOptions()
+    
+    if use_existing:
+        print(f"Connecting to existing Edge Dev browser on port {debug_port}...")
+        options.add_experimental_option("debuggerAddress", f"127.0.0.1:{debug_port}")
+    else:
+        # Set Edge Dev binary location
+        edgedev_paths = [
+            os.path.join(os.environ.get('PROGRAMFILES(X86)', 'C:\\Program Files (x86)'), 'Microsoft', 'Edge Dev', 'Application', 'msedge.exe'),
+            os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 'Microsoft', 'Edge Dev', 'Application', 'msedge.exe'),
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Microsoft', 'Edge Dev', 'Application', 'msedge.exe')
+        ]
+        
+        edgedev_binary = None
+        for path in edgedev_paths:
+            if os.path.exists(path):
+                edgedev_binary = path
+                break
+        
+        if edgedev_binary:
+            options.binary_location = edgedev_binary
+            print(f"Found Edge Dev at: {edgedev_binary}")
+        else:
+            print("Warning: Edge Dev not found. Install from: https://www.microsoft.com/edge/download/insider")
+            raise Exception("Edge Dev browser not found")
+        
+        # Create completely isolated profile for Edge Dev (separate from Edge stable)
+        automation_profile_dir = os.path.join(os.environ['LOCALAPPDATA'], 'Microsoft', 'EdgeDevAutomation', 'UserData')
+        os.makedirs(automation_profile_dir, exist_ok=True)
+        
+        print(f"Using completely isolated Edge Dev profile (no sync with Edge stable)")
+        options.add_argument(f"--user-data-dir={automation_profile_dir}")
+        options.add_argument(f"--profile-directory=Default")
+        
+        # AGGRESSIVE sync prevention - completely isolate Edge Dev from Edge
+        options.add_argument("--disable-sync")  # Disable Microsoft account sync
+        options.add_argument("--disable-features=msEdgeSyncEnabled,EdgeSyncPromo,msEdgeAccountExtension")  # All Edge sync features
+        options.add_argument("--disable-features=ImprovedCookieControls,AutofillEnableAccountWalletStorage")  # Cookie/autofill isolation
+        options.add_argument("--disable-features=EdgeCollectionsEnabled")  # No collections sync
+        options.add_argument("--disable-features=msEdgePasswordManagerEnabled")  # No password sync
+        options.add_argument("--no-first-run")  # Skip first-run import wizard
+        options.add_argument("--no-default-browser-check")
+        options.add_argument("--disable-component-update")  # Prevent automatic profile updates
+        options.add_argument("--disable-background-networking")  # No background account checks
+        options.add_argument("--disable-domain-reliability")  # No cross-profile communication
+        
+        # Force disable automatic sign-in
+        options.add_argument("--disable-features=ImplicitSignin")  # Prevent auto sign-in
+        options.add_argument("--disable-features=msEdgeAutoSignIn")  # Block Edge auto sign-in
+        
+        if headless:
+            options.add_argument("--headless=new")
+        
+        width = random.randint(1200, 1600)
+        height = random.randint(800, 1000)
+        options.add_argument(f"--window-size={width},{height}")
+        
+        options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+        options.add_experimental_option('useAutomationExtension', False)
+        
+        # COMPREHENSIVE preferences to block all sync/import/account sharing
+        prefs = {
+            "profile.default_content_setting_values": {
+                "notifications": 2,  # Block notifications
+            },
+            # Sync disabled at every level
+            "sync.disabled": True,
+            "sync.requested": False,
+            "sync.suppress_start": True,
+            "sync_promo.show_on_first_run_allowed": False,
+            "sync_promo.user_skipped": True,
+            
+            # Browser sign-in disabled
+            "signin.allowed": False,
+            "signin.allowed_on_next_startup": False,
+            
+            # Import disabled
+            "browser.show_home_button": False,
+            "import_dialog_on_first_run": False,
+            "distribution.import_bookmarks": False,
+            "distribution.import_history": False,
+            "distribution.import_search_engine": False,
+            "distribution.skip_first_run_ui": True,
+            "distribution.suppress_first_run_bubble": True,
+            
+            # Profile isolation
+            "profile.using_default_name": True,
+            "profile.default_managed": False
+        }
+        options.add_experimental_option("prefs", prefs)
+
+    # Try to get Edge Dev driver
+    driver = None
+    try:
+        print("Trying to use EdgeDriver for Edge Dev...")
+        driver = webdriver.Edge(options=options)
+        print("Successfully connected using EdgeDriver!")
+    except Exception as e:
+        print(f"EdgeDriver failed: {e}")
+        if not use_existing:
+            try:
+                print("Trying to auto-download EdgeDriver...")
+                service = EdgeService(EdgeChromiumDriverManager().install())
+                driver = webdriver.Edge(service=service, options=options)
+                print("Successfully connected using downloaded EdgeDriver!")
+            except Exception as e2:
+                print(f"Auto-download EdgeDriver failed: {e2}")
+        
+        if driver is None:
+            raise Exception("Could not initialize EdgeDriver for Edge Dev")
+    
+    # Make browser appear more human-like
+    try:
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": """
+                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            """
+        })
+    except Exception:
+        pass
+
+    return driver
+
 def human_scroll(driver, min_steps=4, max_steps=8, min_pause=0.6, max_pause=1.6):
     """
     Scroll in several randomized steps to simulate human reading/scrolling.
@@ -1178,15 +1667,29 @@ def run_search_sequence(topics, browser='edge', headless=False, min_wait=50, max
                     break
                 
                 # Navigate to search page like a human would
+                # Ensure we stay in the same tab (especially for Opera GX)
                 if idx == 1:
                     # First search - go to Bing homepage first
                     print("  -> Navigating to Bing...")
                     driver.get("https://www.bing.com")
                     random_human_pause()
                 else:
-                    # Subsequent searches - use search box or go to new page
+                    # Subsequent searches - always reuse same tab/window
+                    # Make sure we're on the main window (not a popup)
+                    if len(driver.window_handles) > 1:
+                        # Close extra windows/tabs and focus on main one
+                        main_window = driver.window_handles[0]
+                        for handle in driver.window_handles[1:]:
+                            try:
+                                driver.switch_to.window(handle)
+                                driver.close()
+                            except:
+                                pass
+                        driver.switch_to.window(main_window)
+                    
+                    # Navigate in same tab
                     if random.choice([True, False]):
-                        # Sometimes go to fresh Bing page
+                        # Sometimes go to fresh Bing page (still same tab)
                         driver.get("https://www.bing.com")
                         random_human_pause()
                 

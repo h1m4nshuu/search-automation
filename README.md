@@ -1,52 +1,85 @@
-# 🚀 Search Automation - Multi-Browser Parallel Search Tool
+# 🚀 Microsoft Rewards Automation - 8 Browser Parallel Search Tool
 
 ```
-    ██╗  ██╗ ██╗ ███╗   ███╗
-    ██║  ██║███║ ████╗ ████║
-    ███████║╚██║ ██╔████╔██║
-    ██╔══██║ ██║ ██║╚██╔╝██║
-    ██║  ██║ ██║ ██║ ╚═╝ ██║
-    ╚═╝  ╚═╝ ╚═╝ ╚═╝     ╚═╝
+   ___  ___                           _
+  / _ \/ __| __ _ _ _ __ ___ _ _  __| |_
+ | (_) \__ \/ _` | '_/ _/ | ' \/ _` | ' \
+  \___/|___/\__,_|_| \__\_|_||_\__,_|_||_|
+  
+  Microsoft Rewards Automation v2.0
 ```
 
-Automated search tool that performs 30 searches across 4 browsers (Edge, Chrome, Firefox, Brave) **simultaneously** with human-like behavior patterns.
+**Automated Microsoft Rewards search tool** that performs 30 searches across **8 browsers simultaneously** with advanced human-like behavior patterns.
+
+Earn Microsoft Rewards points effortlessly by automating Bing searches across multiple browsers. Each browser maintains persistent login, so you only sign in once!
 
 ---
 
-## 📋 Table of Contents
+## 🎯 Quick Start
 
-- [Features](#-features)
-- [Prerequisites](#-prerequisites)
-- [Installation](#-installation)
-- [Usage](#-usage)
-- [Configuration](#-configuration)
-- [Troubleshooting](#-troubleshooting)
-- [How It Works](#-how-it-works)
+**New user? Start here:** [📖 Complete Setup Guide](COMPLETE_SETUP_GUIDE.md)
+
+**Already set up?** Run this command:
+```powershell
+.\RUN_BROWSERS.ps1
+```
+
+**Having issues?** Check [❓ FAQ](FAQ.md) or [🔧 Troubleshooting](TROUBLESHOOTING.md)
+
+---
+
+## 📋 Documentation
+
+- **[📖 Complete Setup Guide](COMPLETE_SETUP_GUIDE.md)** - Step-by-step setup for new devices
+- **[❓ FAQ](FAQ.md)** - Solutions to all recurring problems
+- **[🔧 Troubleshooting](TROUBLESHOOTING.md)** - Detailed debugging guide
+- **[📅 Scheduling Guide](SCHEDULING_SETUP.md)** - Automate daily runs
 
 ---
 
 ## ✨ Features
 
-- 🌐 **4 Browser Support**: Edge, Chrome, Firefox, and Brave
-- ⚡ **Parallel Execution**: All browsers run simultaneously
-- 🎯 **30 Searches Per Browser**: Total 120 searches in one run
+### 8 Browser Support
+- ✅ Microsoft Edge
+- ✅ Google Chrome  
+- ✅ Mozilla Firefox
+- ✅ Brave Browser
+- ✅ Opera
+- ✅ Microsoft Edge Dev (isolated from Edge)
+- ✅ Opera GX
+- ✅ Chromium
+
+### Advanced Features
+- ⚡ **Parallel Execution**: All 8 browsers run simultaneously
+- 🎯 **240 Total Searches**: 30 searches × 8 browsers = 240 searches per run
+- 🔐 **Persistent Logins**: Sign in once, stay logged in forever
 - 🤖 **Human-Like Behavior**: 
-  - Natural typing with realistic delays
-  - Random mouse movements and scrolling
-  - Variable wait times between searches
-  - Engagement with search results
-- 🔄 **Dynamic Topics**: Generates unique search queries each run
+  - Natural typing with realistic delays (100-200ms per character)
+  - Random mouse movements and scrolling patterns
+  - Variable wait times between searches (10-15 seconds)
+  - Engagement with search results (clicks, scrolls, reading simulation)
+- 🔄 **Dynamic Topics**: Generates unique search queries each run using pytrends
 - 📊 **Progress Tracking**: Real-time status for each browser
+- 🛡️ **Error Recovery**: Multiple fallback methods prevent search failures
+- 🔧 **Auto WebDriver Management**: Automatically downloads correct driver versions
 
 ---
 
-## 📦 Prerequisites
+## 📦 System Requirements
 
-### Required Software
+### Minimum
+- **OS**: Windows 10/11 (64-bit)
+- **RAM**: 8GB (16GB recommended for smooth operation)
+- **Disk**: 5GB free space
+- **Internet**: Stable broadband connection
+- **Python**: 3.8+ (Python 3.13.7 recommended)
 
-1. **Python 3.7 or higher**
-   - Download: https://www.python.org/downloads/
-   - Make sure to check "Add Python to PATH" during installation
+### Browsers
+Install any or all of these browsers (script auto-detects installed browsers):
+- Microsoft Edge (pre-installed on Windows)
+- Chrome, Firefox, Brave, Opera, Edge Dev, Opera GX, Chromium
+
+**[➡️ Browser Installation Guide](COMPLETE_SETUP_GUIDE.md#browser-installation)**
 
 2. **Browsers** (Install at least one, all four recommended):
    - **Microsoft Edge**: https://www.microsoft.com/edge
@@ -464,3 +497,36 @@ Built with:
 Made with ❤️ by H1M
 
 **⭐ Star this repo if you find it useful!**
+
+
+## ⚡ Quick Installation
+
+### 1. Clone Repository
+```cmd
+cd C:\Users\%USERNAME%\Desktop
+git clone https://github.com/YOUR_USERNAME/edge-search.git
+cd edge-search
+```
+
+### 2. Create Virtual Environment
+```cmd
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+### 3. Install Dependencies
+```cmd
+pip install -r requirements.txt
+```
+
+### 4. Run First Time
+```powershell
+.\RUN_BROWSERS.ps1
+```
+
+**On first run:** Sign into Microsoft account in each browser that opens.
+
+**📖 Need detailed steps?** See [Complete Setup Guide](COMPLETE_SETUP_GUIDE.md)
+
+
+**Made with ❤️ for Microsoft Rewards automation**
