@@ -1,12 +1,14 @@
 # 🚀 Microsoft Rewards Automation - 8 Browser Parallel Search Tool
 
 ```
-   ___  ___                           _
-  / _ \/ __| __ _ _ _ __ ___ _ _  __| |_
- | (_) \__ \/ _` | '_/ _/ | ' \/ _` | ' \
-  \___/|___/\__,_|_| \__\_|_||_\__,_|_||_|
-  
-  Microsoft Rewards Automation v2.0
+   ██╗  ██╗  ██╗  ███╗   ███╗
+   ██║  ██║ ███║  ████╗ ████║
+   ███████║ ╚██║  ██╔████╔██║
+   ██╔══██║  ██║  ██║╚██╔╝██║
+   ██║  ██║  ██║  ██║ ╚═╝ ██║
+   ╚═╝  ╚═╝  ╚═╝  ╚═╝     ╚═╝
+   ═══════════════════════════
+   Microsoft Rewards v2.0
 ```
 
 **Automated Microsoft Rewards search tool** that performs 30 searches across **8 browsers simultaneously** with advanced human-like behavior patterns.

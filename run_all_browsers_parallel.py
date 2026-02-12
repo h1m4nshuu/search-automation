@@ -1,6 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Run 30 searches across all 8 browsers (Edge, Chrome, Firefox, Brave, Opera, Vivaldi, Opera GX, Chromium) IN PARALLEL
+   ██╗  ██╗  ██╗  ███╗   ███╗
+   ██║  ██║ ███║  ████╗ ████║
+   ███████║ ╚██║  ██╔████╔██║
+   ██╔══██║  ██║  ██║╚██╔╝██║
+   ██║  ██║  ██║  ██║ ╚═╝ ██║
+   ╚═╝  ╚═╝  ╚═╝  ╚═╝     ╚═╝
+   ═══════════════════════════
+   Microsoft Rewards v2.0
+   
+Run 30 searches across all 8 browsers (Edge, Chrome, Firefox, Brave, Opera, Edge Dev, Opera GX, Chromium) IN PARALLEL
 """
 
 import sys
@@ -51,12 +60,17 @@ def run_all_browsers_parallel():
     TOPIC_COUNT = 30
     
     # H1M Watermark
-    print("\n" + "=" * 70)
-    print("    H   H   1   M     M")
-    print("    H   H  11   MM   MM")
-    print("    HHHHH   1   M M M M")
-    print("    H   H   1   M  M  M")
-    print("    H   H  111  M     M")
+    print("\n")
+    print("   ██╗  ██╗  ██╗  ███╗   ███╗")
+    print("   ██║  ██║ ███║  ████╗ ████║")
+    print("   ███████║ ╚██║  ██╔████╔██║")
+    print("   ██╔══██║  ██║  ██║╚██╔╝██║")
+    print("   ██║  ██║  ██║  ██║ ╚═╝ ██║")
+    print("   ╚═╝  ╚═╝  ╚═╝  ╚═╝     ╚═╝")
+    print("   ═══════════════════════════")
+    print("   Microsoft Rewards v2.0")
+    print("   ═══════════════════════════")
+    print()
     print("=" * 70)
     print("PARALLEL MULTI-BROWSER SEARCH AUTOMATION (8 Browsers)")
     print("=" * 70)
