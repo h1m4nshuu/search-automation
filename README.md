@@ -1,4 +1,4 @@
-# 🚀 Microsoft Rewards Automation - 8 Browser Parallel Search Tool
+# 🚀 Microsoft Rewards Automation - 4 Browser Parallel Search Tool
 
 ```
    ██╗  ██╗  ██╗  ███╗   ███╗
@@ -11,7 +11,7 @@
    Microsoft Rewards v2.0
 ```
 
-**Automated Microsoft Rewards search tool** that performs 30 searches across **8 browsers simultaneously** with advanced human-like behavior patterns.
+**Automated Microsoft Rewards search tool** that performs 30 searches across **4 browsers simultaneously** with advanced human-like behavior patterns.
 
 Earn Microsoft Rewards points effortlessly by automating Bing searches across multiple browsers. Each browser maintains persistent login, so you only sign in once!
 
@@ -58,19 +58,15 @@ The script now automatically prevents browser closing issues:
 
 ## ✨ Features
 
-### 8 Browser Support
+### 4 Browser Support
 - ✅ Microsoft Edge
 - ✅ Google Chrome  
 - ✅ Mozilla Firefox
 - ✅ Brave Browser
-- ✅ Opera
-- ✅ Microsoft Edge Dev (isolated from Edge)
-- ✅ Opera GX
-- ✅ Chromium
 
 ### Advanced Features
-- ⚡ **Parallel Execution**: All 8 browsers run simultaneously
-- 🎯 **240 Total Searches**: 30 searches × 8 browsers = 240 searches per run
+- ⚡ **Parallel Execution**: All 4 browsers run in 2 batches
+- 🎯 **120 Total Searches**: 30 searches × 4 browsers = 120 searches per run
 - 🔐 **Persistent Logins**: Sign in once, stay logged in forever
 - 🤖 **Human-Like Behavior**: 
   - Natural typing with realistic delays (100-200ms per character)
@@ -96,7 +92,7 @@ The script now automatically prevents browser closing issues:
 ### Browsers
 Install any or all of these browsers (script auto-detects installed browsers):
 - Microsoft Edge (pre-installed on Windows)
-- Chrome, Firefox, Brave, Opera, Edge Dev, Opera GX, Chromium
+- Chrome, Firefox, Brave
 
 **[➡️ Browser Installation Guide](COMPLETE_SETUP_GUIDE.md#browser-installation)**
 

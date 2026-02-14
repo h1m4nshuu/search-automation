@@ -3,7 +3,7 @@ search_trending_edge.py
 
 Multi-Browser Selenium script that:
 - chooses 30 trending topics (via pytrends if available, otherwise fallback list),
-- opens each topic in specified browser (Edge, Chrome, Brave, Firefox, Opera, Vivaldi, Opera GX, or Chromium),
+- opens each topic in specified browser (Edge, Chrome, Brave, Firefox, or Vivaldi),
 - scrolls the page in human-like steps,
 - waits a random interval around 15 seconds between searches.
 
@@ -12,14 +12,11 @@ Usage:
   python search_trending_edge.py chrome        # Search in Chrome (Bing)
   python search_trending_edge.py brave         # Search in Brave (Bing)
   python search_trending_edge.py firefox       # Search in Firefox (Bing)
-  python search_trending_edge.py opera         # Search in Opera (Bing)
   python search_trending_edge.py vivaldi       # Search in Vivaldi (Bing)
-  python search_trending_edge.py operagx       # Search in Opera GX (Bing)
-  python search_trending_edge.py chromium      # Search in Chromium (Bing)
 
 Requirements:
   pip install selenium webdriver-manager pytrends
-  Microsoft Edge, Chrome, Brave, Firefox, Opera, Vivaldi, Opera GX, or Chromium browser installed on the machine.
+  Microsoft Edge, Chrome, Brave, Firefox, or Vivaldi browser installed on the machine.
 """
 
 import time
@@ -453,10 +450,10 @@ def click_search_result(driver):
 
 def build_browser_driver(browser='edge', headless=False, window_size=(1200, 800), use_existing=False, debug_port=9222):
     """
-    Build a browser driver for Edge, Chrome, Brave, Firefox, Opera, Vivaldi, Opera GX, or Chromium.
+    Build a browser driver for Edge, Chrome, Brave, Firefox, or Vivaldi.
     
     Args:
-        browser: 'edge', 'chrome', 'brave', 'firefox', 'opera', 'vivaldi', 'operagx', or 'chromium'
+        browser: 'edge', 'chrome', 'brave', 'firefox', or 'vivaldi'
         headless: Run browser in headless mode
         window_size: Initial window size
         use_existing: Connect to existing browser
@@ -469,14 +466,6 @@ def build_browser_driver(browser='edge', headless=False, window_size=(1200, 800)
         return build_brave_driver(headless, window_size, use_existing, debug_port)
     elif browser_lower == 'firefox':
         return build_firefox_driver(headless, window_size, use_existing, debug_port)
-    elif browser_lower == 'opera':
-        return build_opera_driver(headless, window_size, use_existing, debug_port)
-    elif browser_lower == 'edgedev':
-        return build_edgedev_driver(headless, window_size, use_existing, debug_port)
-    elif browser_lower == 'operagx':
-        return build_operagx_driver(headless, window_size, use_existing, debug_port)
-    elif browser_lower == 'chromium':
-        return build_chromium_driver(headless, window_size, use_existing, debug_port)
     else:
         return build_edge_driver(headless, window_size, use_existing, debug_port)
 

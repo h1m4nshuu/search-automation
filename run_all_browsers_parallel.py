@@ -9,7 +9,7 @@
    ═══════════════════════════
    Microsoft Rewards v2.0
    
-Run 30 searches across all 8 browsers (Edge, Chrome, Firefox, Brave, Opera, Edge Dev, Opera GX, Chromium) IN PARALLEL
+"""Run 30 searches across 4 browsers (Edge, Chrome, Firefox, Brave) IN PARALLEL
 """
 
 import sys
@@ -59,8 +59,8 @@ def run_all_browsers_parallel():
     """Run 30 searches on each of the 8 browsers in 2 batches (prevents system overload)"""
     
     # Split browsers into 2 batches to prevent resource overload
-    batch1 = ['edge', 'chrome', 'firefox', 'brave']
-    batch2 = ['opera', 'edgedev', 'operagx', 'chromium']
+    batch1 = ['edge', 'chrome']
+    batch2 = ['firefox', 'brave']
     all_browsers = batch1 + batch2
     TOPIC_COUNT = 30
     
@@ -77,14 +77,14 @@ def run_all_browsers_parallel():
     print("   ═══════════════════════════")
     print()
     print("=" * 70)
-    print("BATCH MODE: 8 Browsers in 2 Groups (Prevents System Overload)")
+    print("BATCH MODE: 4 Browsers in 2 Groups (Prevents System Overload)")
     print("=" * 70)
     print(f"Configuration:")
-    print(f"  - Batch 1: Edge, Chrome, Firefox, Brave (4 browsers)")
-    print(f"  - Batch 2: Opera, Edge Dev, Opera GX, Chromium (4 browsers)")
+    print(f"  - Batch 1: Edge, Chrome (2 browsers)")
+    print(f"  - Batch 2: Firefox, Brave (2 browsers)")
     print(f"  - Searches per browser: {TOPIC_COUNT}")
     print(f"  - Total searches: {TOPIC_COUNT * len(all_browsers)}")
-    print(f"  - Execution: 4 browsers at a time (prevents crashes)")
+    print(f"  - Execution: 2 browsers per batch (prevents crashes)")
     print("=" * 70)
     print()
     
@@ -156,49 +156,13 @@ def run_all_browsers_parallel():
             print("⚠ Proceeding despite cooldown warning...\n")
             save_run_timestamp()  # Update timestamp since user chose to proceed
     
-    # Filter out browsers that aren't installed (check common paths)
+    # All 4 browsers are standard - assume they're installed
     import os
-    available_browsers = []
-    username = os.environ.get('USERNAME', '')
-    browser_paths = {
-        'opera': [
-            os.path.join(r'C:\Users', username, r'AppData\Local\Programs\Opera\opera.exe'),
-            r'C:\Program Files\Opera\opera.exe',
-            r'C:\Program Files\Opera\launcher.exe',
-            os.path.join(r'C:\Users', username, r'AppData\Roaming\Opera Software\Opera Stable\opera.exe')
-        ],
-        'edgedev': [
-            r'C:\Program Files (x86)\Microsoft\Edge Dev\Application\msedge.exe',
-            r'C:\Program Files\Microsoft\Edge Dev\Application\msedge.exe',
-            os.path.join(r'C:\Users', username, r'AppData\Local\Microsoft\Edge Dev\Application\msedge.exe')
-        ],
-        'operagx': [
-            os.path.join(r'C:\Users', username, r'AppData\Local\Programs\Opera GX\opera.exe'),
-            r'C:\Program Files\Opera GX\opera.exe',
-            r'C:\Program Files\Opera GX\launcher.exe'
-        ],
-        'chromium': [
-            os.path.join(r'C:\Users', username, r'AppData\Local\Chromium\Application\chrome.exe'),
-            r'C:\Program Files\Chromium\Application\chrome.exe',
-            r'C:\Program Files (x86)\Chromium\Application\chrome.exe'
-        ]
-    }
+    available_browsers = all_browsers
     
     print("[INFO] Checking browser availability...")
     for browser in all_browsers:
-        # Always include the first 4 browsers (assume they're installed)
-        if browser in ['edge', 'chrome', 'firefox', 'brave']:
-            available_browsers.append(browser)
-            print(f"  [OK] {browser.upper()}")
-        # Check if new browsers are installed
-        elif browser in browser_paths:
-            if any(os.path.exists(path) for path in browser_paths[browser]):
-                available_browsers.append(browser)
-                print(f"  [OK] {browser.upper()}")
-            else:
-                print(f"  [SKIP] {browser.upper()} - not installed")
-        else:
-            available_browsers.append(browser)
+        print(f"  [OK] {browser.upper()}")
     
     # Update batch lists based on available browsers
     batch1 = [b for b in batch1 if b in available_browsers]
@@ -300,13 +264,13 @@ def run_all_browsers_parallel():
     
     # Display final results
     print("\n" + "=" * 70)
-    print("🎉 ALL 8 BROWSERS COMPLETED!")
+    print("🎉 ALL 4 BROWSERS COMPLETED!")
     print("=" * 70)
     
     successful = 0
     failed = 0
     
-    for browser in browsers:
+    for browser in available_browsers:
         result = browser_results.get(browser, {'status': 'unknown'})
         if result['status'] == 'success':
             print(f"[OK] {browser.upper()}: {result['count']} searches completed")

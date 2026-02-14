@@ -1,70 +1,38 @@
-# 8-Browser Parallel Search Setup
+# 4-Browser Parallel Search Setup
 
 ## Supported Browsers
 
-The script now supports **8 browsers** running in parallel:
+The script now supports **4 browsers** running in parallel:
 
-### Currently Supported (Original 4)
+### Currently Supported
 1. **Microsoft Edge** - Default Windows browser
 2. **Google Chrome** - Popular Chromium-based browser
 3. **Mozilla Firefox** - Popular Gecko-based browser
 4. **Brave Browser** - Privacy-focused Chromium browser
 
-### Newly Added (4 More)
-5. **Opera** - Feature-rich Chromium-based browser
-6. **Vivaldi** - Customizable Chromium-based browser
-7. **Opera GX** - Gaming-focused variant of Opera
-8. **Chromium** - Open-source base for Chrome
-
 ## Installation Requirements
 
-### Install Browsers
-
-**Opera:**
-- Download from: https://www.opera.com/
-- Default install location: `C:\Users\<user>\AppData\Local\Programs\Opera`
-
-**Vivaldi:**
-- Download from: https://vivaldi.com/
-- Default install location: `C:\Users\<user>\AppData\Local\Vivaldi`
-
-**Opera GX:**
-- Download from: https://www.opera.com/gx
-- Default install location: `C:\Users\<user>\AppData\Local\Programs\Opera GX`
-
-**Chromium:**
-- Download from: https://www.chromium.org/getting-involved/download-chromium/
-- Or: https://download-chromium.appspot.com/
-- Default install location: `C:\Users\<user>\AppData\Local\Chromium`
-
 ### Python Requirements
-No changes needed - all new browsers use ChromeDriver (already installed).
+No changes needed - all browsers use their respective WebDrivers (already installed).
 
 ## Usage
 
-### Run All 8 Browsers in Parallel
+### Run All 4 Browsers in Parallel
 ```powershell
 python run_all_browsers_parallel.py
 ```
 
 This will:
-- Launch all 8 browsers simultaneously
+- Launch all 4 browsers in 2 batches
 - Run 30 searches per browser
-- Total: **240 searches** across all browsers
+- Total: **120 searches** across all browsers
 
 ### Run Individual Browser
 ```powershell
-# Original browsers
 python search_trending_edge.py edge
 python search_trending_edge.py chrome
 python search_trending_edge.py firefox
 python search_trending_edge.py brave
-
-# New browsers
-python search_trending_edge.py opera
-python search_trending_edge.py vivaldi
-python search_trending_edge.py operagx
-python search_trending_edge.py chromium
 ```
 
 ## Configuration
@@ -79,9 +47,8 @@ TOPIC_COUNT = 30  # Change to desired number
 Edit `run_all_browsers_parallel.py`:
 ```python
 # Use only specific browsers
-browsers = ['edge', 'chrome', 'opera', 'vivaldi']  # 4 browsers
-browsers = ['edge', 'chrome', 'firefox', 'brave', 'opera', 'vivaldi']  # 6 browsers
-browsers = ['edge', 'chrome', 'firefox', 'brave', 'opera', 'vivaldi', 'operagx', 'chromium']  # All 8
+batch1 = ['edge', 'chrome']
+batch2 = ['firefox', 'brave']
 ```
 
 ## Browser Detection
@@ -92,8 +59,8 @@ The script automatically detects installed browsers:
 
 ## Performance Notes
 
-### System Requirements for 8 Browsers
-- **RAM**: 16GB+ recommended (each browser uses ~500MB-1GB)
+### System Requirements for 4 Browsers
+- **RAM**: 8GB recommended (each browser uses ~500MB-1GB)
 - **CPU**: 4+ cores recommended
 - **Disk**: Ensure sufficient space for browser profiles
 
@@ -124,7 +91,7 @@ pip install --upgrade selenium webdriver-manager
 ```
 
 ### Out of Memory
-If running all 8 browsers causes memory issues:
+If running all 4 browsers causes memory issues:
 1. Reduce `TOPIC_COUNT` (e.g., from 30 to 15)
 2. Run fewer browsers at once
 3. Close other applications
@@ -143,38 +110,25 @@ If browsers fail to launch:
 
 ### Chromium-Based Browsers
 Use ChromeDriver with custom binary paths:
-- Opera: `launcher.exe`
-- Vivaldi: `vivaldi.exe`
-- Opera GX: `launcher.exe`
+- Chrome: `chrome.exe`
+- Brave: `brave.exe`
 - Chromium: `chrome.exe`
 
 ### Firefox-Based Browsers
 Use GeckoDriver:
-- Firefox only (no other Firefox variants added)
+- Firefox only
 
-### Why These 4 Browsers?
-1. **Opera** - Popular, Chromium-based, easy to automate
-2. **Vivaldi** - Power user favorite, Chromium-based
-3. **Opera GX** - Different variant, gaming-focused
-4. **Chromium** - Pure open-source base
-
-### Alternative Browsers Considered
-- ❌ Tor Browser - Too slow for automation
-- ❌ Yandex - Less common, regional
-- ❌ Waterfox - Firefox variant, less mainstream
-- ❌ Edge Beta/Dev - Could cause conflicts with Edge stable
+### Edge Browser
+Uses EdgeDriver:
+- Microsoft Edge: `msedge.exe`
 
 ## Summary
 
-**Before (4 browsers):**
+**Current Setup (4 browsers):**
 - Edge, Chrome, Firefox, Brave
 - 30 searches × 4 = **120 total searches**
-
-**After (8 browsers):**
-- Edge, Chrome, Firefox, Brave, Opera, Vivaldi, Opera GX, Chromium
-- 30 searches × 8 = **240 total searches**
 
 **Execution Time:**
 - ~15 seconds per search
 - 30 searches per browser ≈ 7.5 minutes
-- All run in parallel ≈ **7.5 minutes total** (instead of 60 minutes sequential)
+- All run in parallel (2 batches) ≈ **7.5 minutes total**
